@@ -22,7 +22,7 @@ export const LegendsView: React.FC<LegendsViewProps> = ({ players }) => {
           </h2>
           <div className="flex items-center justify-center gap-3 mt-2">
              <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-yellow-600"></div>
-             <p className="text-yellow-500/80 font-mono text-[9px] md:text-xs tracking-[0.4em] uppercase">Eternal Glory to the MJR Immortals</p>
+             <p className="text-yellow-500/80 font-mono text-[9px] md:text-xs tracking-[0.4em] uppercase">Glória Eterna aos Imortais MJR</p>
              <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-yellow-600"></div>
           </div>
       </div>
@@ -57,7 +57,7 @@ export const LegendsView: React.FC<LegendsViewProps> = ({ players }) => {
           <div className="max-w-2xl mx-auto mt-16">
               <div className="flex items-center gap-4 mb-6">
                   <div className="h-px bg-gradient-to-r from-transparent to-gray-800 flex-1"></div>
-                  <span className="font-display text-gray-500 text-[10px] tracking-[0.3em] uppercase">Honorable Mention</span>
+                  <span className="font-display text-gray-500 text-[10px] tracking-[0.3em] uppercase">Menção Honrosa</span>
                   <div className="h-px bg-gradient-to-l from-transparent to-gray-800 flex-1"></div>
               </div>
 
@@ -73,7 +73,7 @@ export const LegendsView: React.FC<LegendsViewProps> = ({ players }) => {
                           <div className="flex items-center gap-4">
                               <span className="font-mono text-lg text-white font-bold group-hover:text-yellow-500">{p.totalKS}</span>
                               <div className="h-4 w-px bg-gray-800"></div>
-                              <span className="text-[9px] text-gray-600 uppercase tracking-widest">Kills</span>
+                              <span className="text-[9px] text-gray-600 uppercase tracking-widest">KS</span>
                           </div>
                       </div>
                   ))}
@@ -132,8 +132,6 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
 
     return (
         <div className={`relative group w-full flex flex-col transition-all duration-500 hover:-translate-y-2`}>
-            
-            {/* Crown/Star Icon */}
             {type === 'gold' && (
                 <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_0_12px_rgba(255,215,0,0.6)] animate-pulse">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-9 h-9 text-yellow-400">
@@ -142,17 +140,13 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
                 </div>
             )}
 
-            {/* Main Card Shell */}
             <div className={`
                 relative w-full flex-1 ${s.height} rounded-2xl 
                 border-2 ${s.border} ${s.bg} ${s.glow}
                 flex flex-col items-center pt-8 pb-5 px-3 overflow-hidden
             `}>
-                
-                {/* Decorative Inner Frame */}
                 <div className={`absolute inset-2 border ${s.innerBorder} rounded-xl pointer-events-none opacity-30`}></div>
 
-                {/* Rank Badge Emblem */}
                 <div className={`
                     absolute -top-1 right-4 px-2.5 py-1
                     ${s.accent} rounded-b-lg
@@ -162,7 +156,6 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
                     <span className="font-display font-black text-[11px] text-black italic">RANK {rank}</span>
                 </div>
 
-                {/* Title Badge (Ribbon Style) */}
                 <div className={`
                     px-4 py-0.5 ${s.titleBg} rounded-full 
                     border border-current border-opacity-30 
@@ -173,7 +166,6 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
                     </span>
                 </div>
 
-                {/* Player Identity (Avatar Initials) */}
                 <div className={`
                     w-14 h-14 rounded-full 
                     border-2 ${s.innerBorder} bg-black 
@@ -185,7 +177,6 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
                     </span>
                 </div>
 
-                {/* HERO NAME - O Grande Destaque */}
                 <div className="flex-1 flex flex-col justify-center items-center w-full min-h-[45px] z-10">
                     <h3 className={`
                         text-white font-display font-black text-center leading-tight tracking-tight px-1
@@ -200,12 +191,10 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
                     </p>
                 </div>
 
-                {/* Footer Divider */}
                 <div className={`h-[1px] w-1/2 bg-gradient-to-r from-transparent via-current to-transparent opacity-30 my-4 shrink-0 ${s.text}`}></div>
 
-                {/* Score Section */}
                 <div className="text-center shrink-0 z-10">
-                    <span className="text-gray-500 text-[8px] uppercase tracking-[0.3em] block mb-1">Lifetime Score</span>
+                    <span className="text-gray-500 text-[8px] uppercase tracking-[0.3em] block mb-1">Lifetime KS</span>
                     <div className="flex items-center justify-center gap-1">
                          <span className={`font-mono ${isPrime ? 'text-4xl' : 'text-3xl'} font-black text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]`}>
                             {player.totalKS}
@@ -213,9 +202,7 @@ const WarriorCard: React.FC<WarriorCardProps> = ({ player, rank, type, title, su
                     </div>
                 </div>
 
-                {/* Subtle Glow Background behind text */}
                 <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 blur-[50px] opacity-10 rounded-full ${s.accent}`}></div>
-
             </div>
         </div>
     );

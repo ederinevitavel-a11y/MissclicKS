@@ -1,31 +1,20 @@
+
 import { RawDataRow, RankedPlayer, TimeFrame, OverviewData } from '../types';
 
-/**
- * CONFIGURAÇÃO DE FONTES DE DADOS
- * Para o GitHub: Use o link que termina em 'raw.githubusercontent.com/...'
- */
-const GITHUB_CSV_NAME = 'dados.csv'; // Nome do arquivo dentro do seu repositório
+const GITHUB_CSV_NAME = 'dados.csv';
 const GOOGLE_SHEET_FALLBACK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?output=csv';
 
 export const fetchAndParseData = async (): Promise<RawDataRow[]> => {
   try {
-    // 1. Tenta carregar do próprio repositório (Vercel/GitHub Pages)
     let response = await fetch(`./${GITHUB_CSV_NAME}?t=${Date.now()}`);
-    
-    // 2. Se não encontrar localmente, tenta o Google Sheets
     if (!response.ok) {
-      console.log("Arquivo local não detectado. Sincronizando via Nuvem MJR...");
       response = await fetch(`${GOOGLE_SHEET_FALLBACK}&t=${Date.now()}`);
     }
-    
-    if (!response.ok) {
-      throw new Error('Todas as fontes de dados estão inacessíveis.');
-    }
-    
+    if (!response.ok) throw new Error('Fontes de dados inacessíveis.');
     const text = await response.text();
     return parseCSV(text);
   } catch (error) {
-    console.error("Erro crítico de sincronização:", error);
+    console.error("Erro de sincronização:", error);
     return []; 
   }
 };
@@ -39,19 +28,20 @@ const parseCSV = (csvText: string): RawDataRow[] => {
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i], delimiter);
-    if (cols.length <= 2) continue;
+    if (cols.length <= 4) continue;
 
     const dateStr = cols[0];
     const name = cols[2];
     const rank = cols[3] ? cols[3].trim() : 'Unranked';
-    const respawn = cols[5] ? cols[5].trim() : 'Unknown Area';
+    const hunted = cols[4] ? cols[4].trim() : ''; // Coluna E
+    const respawn = cols[5] ? cols[5].trim() : 'Unknown Area'; // Coluna F
+    const usualTime = cols[12] ? cols[12].trim() : ''; // Coluna M
 
     if (!name || name.trim() === '') continue;
 
     let dateObj = parseFlexibleDate(dateStr) || new Date();
 
     let points = 1;
-    // Lógica de Peso 02 para KS pesado
     if (cols.length > 8) {
         for (let j = 8; j < Math.min(cols.length, 14); j++) {
             if (cols[j] && cols[j].trim().toLowerCase() === 'peso 02') {
@@ -66,7 +56,9 @@ const parseCSV = (csvText: string): RawDataRow[] => {
       ks: points, 
       date: dateObj.toISOString(),
       playerRank: rank,
-      respawn: respawn
+      respawn: respawn,
+      huntedName: hunted,
+      usualTime: usualTime
     });
   }
   return data;
@@ -95,21 +87,16 @@ const parseCSVLine = (text: string, delimiter: string): string[] => {
 
 const parseFlexibleDate = (dateStr: string): Date | null => {
     const cleanStr = dateStr.trim();
-    // Regex melhorada: Captura DD/MM/AAAA e opcionalmente HH:mm ou HHhMM
     const dateMatch = cleanStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})(?:\s+(\d{1,2})[:h](\d{1,2}))?/i);
-    
     if (dateMatch) {
         const day = parseInt(dateMatch[1]);
         const month = parseInt(dateMatch[2]) - 1;
         let year = parseInt(dateMatch[3]);
         if (year < 100) year += 2000;
-        
         const hour = dateMatch[4] ? parseInt(dateMatch[4]) : 0;
         const minute = dateMatch[5] ? parseInt(dateMatch[5]) : 0;
-        
         return new Date(year, month, day, hour, minute);
     }
-    
     const iso = new Date(cleanStr);
     return isNaN(iso.getTime()) ? null : iso;
 };
@@ -122,21 +109,69 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
     const rankMap = new Map<string, number>();
     const respawnMap = new Map<string, number>();
     const playerTotalMap = new Map<string, number>();
+    
+    // Hunted Intel
+    const huntedTimeDist = new Array(24).fill(0);
+    const huntedMap = new Map<string, { count: number; hours: Map<string, number>; locations: Map<string, number>; lastSeen: Date }>();
+    
     let normalKills = 0;
     let heavyKills = 0;
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
 
     rawData.forEach(row => {
         const date = new Date(row.date);
         if (isNaN(date.getTime())) return;
+        
         totalKills += row.ks;
         if (row.ks > 1) heavyKills++; else normalKills++;
+        
         hourlyCounts[date.getHours()] += row.ks;
         weeklyCounts[date.getDay()] += row.ks;
+        
         const dateKey = date.toISOString().split('T')[0];
         dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + row.ks);
         rankMap.set(row.playerRank, (rankMap.get(row.playerRank) || 0) + row.ks);
         respawnMap.set(row.respawn, (respawnMap.get(row.respawn) || 0) + row.ks);
         playerTotalMap.set(row.player, (playerTotalMap.get(row.player) || 0) + row.ks);
+
+        // Processamento de Hunted nos últimos 30 dias
+        if (row.huntedName && row.huntedName !== '' && date >= thirtyDaysAgo) {
+            const huntedData = huntedMap.get(row.huntedName) || { 
+              count: 0, 
+              hours: new Map<string, number>(), 
+              locations: new Map<string, number>(),
+              lastSeen: date
+            };
+            huntedData.count++;
+            
+            // Atualiza data do último avistamento
+            if (date > huntedData.lastSeen) {
+                huntedData.lastSeen = date;
+            }
+            
+            // Logica de horas
+            if (row.usualTime) {
+                const hourMatch = row.usualTime.match(/(\d{1,2})/);
+                if (hourMatch) {
+                    const h = parseInt(hourMatch[1]);
+                    if (h >= 0 && h < 24) {
+                        huntedTimeDist[h]++;
+                        const hStr = h.toString().padStart(2, '0') + ':00';
+                        huntedData.hours.set(hStr, (huntedData.hours.get(hStr) || 0) + 1);
+                    }
+                }
+            }
+
+            // Logica de locais
+            if (row.respawn) {
+              huntedData.locations.set(row.respawn, (huntedData.locations.get(row.respawn) || 0) + 1);
+            }
+
+            huntedMap.set(row.huntedName, huntedData);
+        }
     });
 
     const sortedDates = Array.from(dateMap.entries()).map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date));
@@ -147,6 +182,35 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
     const dominationStats = Array.from(playerTotalMap.entries())
         .map(([name, count]) => ({ name, count, percentage: (count / (totalKills || 1)) * 100 }))
         .sort((a, b) => b.count - a.count).slice(0, 5);
+
+    const targets = Array.from(huntedMap.entries())
+        .map(([name, data]) => {
+            // Acha a hora mais frequente para esse hunted
+            let peakHour = "N/A";
+            let maxH = 0;
+            data.hours.forEach((count, hour) => {
+                if (count > maxH) {
+                    maxH = count;
+                    peakHour = hour;
+                }
+            });
+
+            // Top 3 locais
+            const topLocations = Array.from(data.locations.entries())
+              .map(([locName, locCount]) => ({ name: locName, count: locCount }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 3);
+
+            return { 
+                name, 
+                count: data.count, 
+                peakHour, 
+                lastSeen: data.lastSeen.toISOString(),
+                topLocations 
+            };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
 
     return {
         totalKills,
@@ -160,7 +224,11 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         killsByRank,
         topRespawns,
         recentActivity: rawData.slice(-5).reverse(),
-        dominationStats
+        dominationStats,
+        huntedIntel: {
+            timeDistribution: huntedTimeDist,
+            targets
+        }
     };
 };
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { OverviewData } from '../types';
 
@@ -15,7 +16,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
   const maxRankCount = Math.max(...data.killsByRank.map(r => r.count), 1);
   const maxRespawnCount = Math.max(...data.topRespawns.map(r => r.count), 1);
 
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   return (
     <div className="w-full max-w-6xl mx-auto px-2 pb-12 animate-fade-in">
@@ -29,20 +30,20 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
             borderColor="border-neon-purple"
         />
         <StatCard 
-            label="Avg KS / Day" 
+            label="Média KS / Dia" 
             value={data.avgKillsPerDay.toString()} 
             color="text-neon-blue"
             borderColor="border-neon-blue"
         />
         <StatCard 
-            label="Heavy Weights" 
+            label="Pesos Pesados" 
             value={data.weightDistribution.heavy.toString()} 
             subValue={`vs ${data.weightDistribution.normal} Normal`}
             color="text-neon-green"
             borderColor="border-neon-green"
         />
         <StatCard 
-            label="Peak Day" 
+            label="Dia de Pico" 
             value={data.busiestDay.substring(0, 3)} 
             color="text-white"
             borderColor="border-gray-500"
@@ -56,7 +57,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
         <div className="md:col-span-2 bg-black/60 border border-neon-purple/30 rounded-xl p-6 relative overflow-hidden">
             <h3 className="text-neon-purple font-display mb-4 tracking-widest text-sm uppercase flex items-center gap-2">
                 <span className="w-2 h-2 bg-neon-purple rounded-full animate-pulse"></span>
-                Combat Logs (Live Feed)
+                Logs de Combate (Live Feed)
             </h3>
             <div className="flex flex-col gap-2 font-mono text-sm max-h-[160px] overflow-y-auto custom-scrollbar">
                 {data.recentActivity.map((log, i) => {
@@ -82,7 +83,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
 
         {/* Warlords (Server Domination) */}
         <div className="bg-black/60 border border-neon-blue/30 rounded-xl p-6 relative overflow-hidden">
-            <h3 className="text-neon-blue font-display mb-4 tracking-widest text-sm uppercase">Warlords (Top Share)</h3>
+            <h3 className="text-neon-blue font-display mb-4 tracking-widest text-sm uppercase">Warlords (% de Domínio)</h3>
             <div className="flex flex-col justify-center h-full pb-4 gap-3">
                 {data.dominationStats.map((stat, i) => (
                     <div key={i} className="relative">
@@ -98,32 +99,29 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                         </div>
                     </div>
                 ))}
-                {/* Visual filler for 'Others' */}
                 <div className="mt-2 text-center text-[10px] text-gray-600 uppercase tracking-widest">
-                    Remaining {100 - data.dominationStats.reduce((acc, curr) => acc + curr.percentage, 0) > 0 
+                    Restante {100 - data.dominationStats.reduce((acc, curr) => acc + curr.percentage, 0) > 0 
                         ? (100 - data.dominationStats.reduce((acc, curr) => acc + curr.percentage, 0)).toFixed(1) 
-                        : '0'}% held by others
+                        : '0'}% distribuído
                 </div>
             </div>
         </div>
       </div>
 
-      {/* 3. Weekly Distribution (Expanded & Redesigned) */}
+      {/* 3. Weekly Distribution */}
       <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden mb-8">
             <div className="flex justify-between items-end mb-6">
                 <div>
-                    <h3 className="text-neon-green font-display tracking-widest text-sm uppercase">Weekly Intensity</h3>
-                    <p className="text-[10px] text-gray-500 mt-1">Activity distribution by day of week</p>
+                    <h3 className="text-neon-green font-display tracking-widest text-sm uppercase">Intensidade Semanal</h3>
+                    <p className="text-[10px] text-gray-500 mt-1">Distribuição de atividade por dia</p>
                 </div>
                 <div className="text-right">
                      <span className="text-2xl font-mono font-bold text-white">{totalWeeklyKS}</span>
-                     <span className="text-[10px] text-gray-500 block uppercase tracking-wider">Weekly Total</span>
+                     <span className="text-[10px] text-gray-500 block uppercase tracking-wider">KS Semanal</span>
                 </div>
             </div>
             
             <div className="relative h-48 w-full max-w-5xl mx-auto mt-4 group">
-                
-                {/* Background Grid Lines */}
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
                      <div className="w-full h-px bg-gray-600 border-t border-dashed border-gray-500"></div>
                      <div className="w-full h-px bg-gray-700"></div>
@@ -132,47 +130,35 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                      <div className="w-full h-px bg-neon-green"></div>
                 </div>
 
-                {/* Bars Container */}
                 <div className="absolute inset-0 flex items-end justify-between gap-2 sm:gap-4 z-10">
                     {daysOfWeek.map((day, i) => {
                         const count = data.weeklyDistribution[i];
                         const percentage = (count / maxWeekly) * 100;
                         const isPeak = count === maxWeekly && count > 0;
                         
-                        // Dynamic Colors based on intensity/peak
                         const barColor = isPeak ? 'bg-neon-purple' : 'bg-neon-green';
                         const gradientFrom = isPeak ? 'from-neon-purple/20' : 'from-neon-green/20';
                         const gradientTo = isPeak ? 'to-neon-purple' : 'to-neon-green';
-                        const shadowColor = isPeak ? 'shadow-[0_0_20px_#bc13fe]' : 'shadow-[0_0_15px_#0aff0a]';
 
                         return (
                             <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group/bar relative hover:z-20">
-                                
-                                {/* Hover Tooltip */}
                                 <div className="mb-2 opacity-0 group-hover/bar:opacity-100 transition-all duration-200 transform translate-y-2 group-hover/bar:translate-y-0 bg-black border border-gray-700 px-2 py-1 rounded text-center shadow-xl pointer-events-none absolute bottom-full">
                                     <span className={`block font-bold font-mono ${isPeak ? 'text-neon-purple' : 'text-neon-green'}`}>{count}</span>
-                                    <span className="text-[9px] text-gray-500 uppercase">Kills</span>
+                                    <span className="text-[9px] text-gray-500 uppercase">KS</span>
                                 </div>
 
-                                {/* The Bar */}
                                 <div 
                                     style={{ height: `${percentage}%` }}
                                     className={`
                                         w-full max-w-[40px] rounded-t-sm relative transition-all duration-300
                                         bg-gradient-to-t ${gradientFrom} ${gradientTo}
                                         group-hover/bar:brightness-125
-                                        /* Dim others on hover logic is handled by parent group opacity if needed, 
-                                           but simpler looks better here: */
                                     `}
                                 >
-                                    {/* Top Cap Light */}
                                     <div className={`w-full h-[2px] ${barColor} shadow-[0_0_10px_currentColor] absolute top-0 left-0`}></div>
-                                    
-                                    {/* Inner Shine Effect */}
                                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-50"></div>
                                 </div>
 
-                                {/* Label */}
                                 <div className={`
                                     mt-3 text-xs font-mono uppercase tracking-widest transition-colors
                                     ${isPeak ? 'text-neon-purple font-bold' : 'text-gray-500 group-hover/bar:text-white'}
@@ -190,7 +176,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
         {/* 4. KS By Rank Distribution */}
         <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden group">
              <div className="absolute inset-0 bg-neon-purple/5 opacity-0 group-hover:opacity-10 transition-opacity" />
-             <h3 className="text-neon-purple font-display mb-6 tracking-widest text-sm uppercase">Combat Efficiency by Rank</h3>
+             <h3 className="text-neon-purple font-display mb-6 tracking-widest text-sm uppercase">Eficiência de Combate por Rank</h3>
              
              <div className="flex flex-col gap-3 h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {data.killsByRank.map((item, i) => (
@@ -211,7 +197,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                 ))}
                 {data.killsByRank.length === 0 && (
                     <div className="flex items-center justify-center h-full text-gray-500 text-xs italic">
-                        No rank data available
+                        Sem dados de rank
                     </div>
                 )}
              </div>
@@ -220,7 +206,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
         {/* 5. Top 5 Respawns (Hotzones) */}
         <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden group">
              <div className="absolute inset-0 bg-neon-green/5 opacity-0 group-hover:opacity-10 transition-opacity" />
-             <h3 className="text-neon-green font-display mb-6 tracking-widest text-sm uppercase">High Traffic Zones (Top 5)</h3>
+             <h3 className="text-neon-green font-display mb-6 tracking-widest text-sm uppercase">Zonas de Alta Atividade (Top 5)</h3>
              
              <div className="flex flex-col gap-3 h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {data.topRespawns.map((item, i) => (
@@ -242,7 +228,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                 ))}
                 {data.topRespawns.length === 0 && (
                     <div className="flex items-center justify-center h-full text-gray-500 text-xs italic">
-                        No respawn data available
+                        Sem dados de respawn
                     </div>
                 )}
              </div>
@@ -251,12 +237,9 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
 
       {/* 6. Recent Trend (Full Width) */}
       <div className="w-full bg-black/40 border border-gray-800 rounded-xl p-6 relative">
-            <h3 className="text-white font-display mb-4 tracking-widest text-sm uppercase">KS Trend (Last 14 Active Days)</h3>
+            <h3 className="text-white font-display mb-4 tracking-widest text-sm uppercase">Tendência de KS (Últimos 14 Dias Ativos)</h3>
             
-            {/* Chart Container */}
             <div className="relative h-48 w-full mt-4">
-                
-                {/* Background Grid Lines for easier reading */}
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
                      <div className="w-full h-px bg-gray-800/50 border-t border-dashed border-gray-700/50"></div>
                      <div className="w-full h-px bg-gray-800/30"></div>
@@ -272,7 +255,6 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                          
                          return (
                          <div key={i} className="flex-1 flex flex-col justify-end group h-full relative">
-                             {/* Tooltip Popup (Moved outside overflow-hidden container) */}
                              <div 
                                 style={{ bottom: `${heightPercentage}%` }}
                                 className={`absolute left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black border ${isPeak ? 'border-neon-purple' : 'border-neon-blue'} text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none`}
@@ -281,10 +263,7 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                                  <div className={`absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ${isPeak ? 'border-t-neon-purple' : 'border-t-neon-blue'}`}></div>
                              </div>
 
-                             {/* Background Track */}
                              <div className="relative flex flex-col justify-end h-full w-full bg-white/5 rounded-sm overflow-hidden">
-                                
-                                {/* The Data Bar */}
                                  <div 
                                     style={{ height: `${heightPercentage}%` }}
                                     className={`w-full relative min-h-[4px] rounded-t-sm transition-all duration-500 border-t-2 
@@ -295,9 +274,8 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
                                  />
                              </div>
                              
-                             {/* Date Labels */}
                              <div className="mt-2 text-center">
-                                <span className={`text-[10px] font-mono block transition-colors ${isPeak ? 'text-neon-purple font-bold drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]' : 'text-gray-500 group-hover:text-neon-blue'}`}>
+                                <span className={`text-[10px] font-mono block transition-colors ${isPeak ? 'text-neon-purple font-bold drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]' : 'text-gray-700 group-hover:text-neon-blue'}`}>
                                     {d.date.split('-')[2]}
                                 </span>
                                 <span className="text-[8px] text-gray-700 block -mt-0.5">
