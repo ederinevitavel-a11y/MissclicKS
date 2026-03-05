@@ -2,65 +2,135 @@
 import { RawDataRow, RankedPlayer, TimeFrame, OverviewData } from '../types';
 
 const GITHUB_CSV_NAME = 'dados.csv';
-const GOOGLE_SHEET_FALLBACK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?output=csv';
+const DEFAULT_FALLBACK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?output=csv';
+
+const getSheetUrl = () => {
+  const customUrl = localStorage.getItem('CUSTOM_SHEET_URL');
+  return customUrl || import.meta.env.VITE_SHEET_URL || DEFAULT_FALLBACK;
+};
+
+const fetchWithTimeout = async (url: string, timeout = 10000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error: any) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error('A conexão com a planilha expirou (timeout). Verifique se o link está correto e se a planilha está publicada.');
+    }
+    throw error;
+  }
+};
 
 export const fetchAndParseData = async (): Promise<RawDataRow[]> => {
+  const url = getSheetUrl();
+  console.log("URL da planilha sendo acessada:", url);
   try {
+    console.log("Tentando fetch local...");
     let response = await fetch(`./${GITHUB_CSV_NAME}?t=${Date.now()}`);
-    if (!response.ok) {
-      response = await fetch(`${GOOGLE_SHEET_FALLBACK}&t=${Date.now()}`);
+    let text = "";
+    
+    if (response.ok) {
+      console.log("Fetch local OK");
+      text = await response.text();
+      if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+        console.log("Arquivo local 'dados.csv' não encontrado ou é um HTML. Tentando Google Sheets...");
+        response = await fetchWithTimeout(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`);
+        console.log("Fetch Google Sheets resposta:", response.status);
+        if (!response.ok) throw new Error(`Erro ao acessar Google Sheets: ${response.status}`);
+        text = await response.text();
+      }
+    } else {
+      console.log("Fetch local falhou, tentando Google Sheets...");
+      response = await fetchWithTimeout(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`);
+      console.log("Fetch Google Sheets resposta:", response.status);
+      if (!response.ok) throw new Error(`Erro ao acessar Google Sheets: ${response.status}`);
+      text = await response.text();
     }
-    if (!response.ok) throw new Error('Fontes de dados inacessíveis.');
-    const text = await response.text();
+    
+    if (!text || text.trim().length < 10) {
+      throw new Error("A planilha parece estar vazia ou o formato é inválido.");
+    }
+    
     return parseCSV(text);
-  } catch (error) {
-    console.error("Erro de sincronização:", error);
-    return []; 
+  } catch (error: any) {
+    console.error("Erro detalhado de sincronização:", error);
+    throw error;
   }
 };
 
 const parseCSV = (csvText: string): RawDataRow[] => {
+  // Verifica se o conteúdo recebido é HTML (erro comum de publicação)
+  if (csvText.includes('<html') || csvText.includes('<!DOCTYPE')) {
+    throw new Error("O link retornou uma página HTML em vez de um arquivo CSV. Certifique-se de publicar como 'Valores separados por vírgulas (.csv)'.");
+  }
+
   const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
   if (lines.length < 2) return [];
 
-  const delimiter = detectDelimiter(lines[0]);
+  const header = lines[0];
+  const delimiter = detectDelimiter(header);
+  const headers = parseCSVLine(header, delimiter).map(h => h.toLowerCase().trim());
+  
+  // Tenta encontrar os índices das colunas dinamicamente
+  const idxDate = headers.findIndex(h => h.includes('data') || h.includes('timestamp') || h.includes('carimbo'));
+  const idxName = headers.findIndex(h => h.includes('nome') || h.includes('player') || h.includes('personagem') || h.includes('char'));
+  const idxRank = headers.findIndex(h => h.includes('rank') || h.includes('patente'));
+  const idxHunted = headers.findIndex(h => h.includes('hunted') || h.includes('vítima') || h.includes('alvo'));
+  const idxRespawn = headers.findIndex(h => h.includes('respawn') || h.includes('respaw') || h.includes('local') || h.includes('área'));
+  const idxStatus = headers.findIndex(h => h.includes('status') || h.includes('situação'));
+  
+  console.log("Cabeçalhos detectados:", headers);
+  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus });
+
   const data: RawDataRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i], delimiter);
-    if (cols.length <= 4) continue;
+    if (cols.length < 2) continue;
 
-    const dateStr = cols[0];
-    const name = cols[2];
-    const rank = cols[3] ? cols[3].trim() : 'Unranked';
-    const hunted = cols[4] ? cols[4].trim() : ''; // Coluna E
-    const respawn = cols[5] ? cols[5].trim() : 'Unknown Area'; // Coluna F
-    const usualTime = cols[12] ? cols[12].trim() : ''; // Coluna M
+    // Filtro de Status (Apenas Aprovados)
+    if (idxStatus !== -1 && cols[idxStatus]) {
+      const status = cols[idxStatus].toLowerCase();
+      if (status.includes('negado') || status.includes('rejeitado')) {
+        continue;
+      }
+    }
 
+    // Usa os índices detectados ou fallbacks fixos (0, 2, 3, 4, 5)
+    const name = cols[idxName !== -1 ? idxName : 2];
     if (!name || name.trim() === '') continue;
+
+    const dateStr = cols[idxDate !== -1 ? idxDate : 0];
+    const rank = idxRank !== -1 ? cols[idxRank] : (cols[3] || 'Unranked');
+    const hunted = idxHunted !== -1 ? cols[idxHunted] : (cols[4] || '');
+    const respawn = idxRespawn !== -1 ? cols[idxRespawn] : (cols[5] || 'Unknown Area');
+    const usualTime = cols[12] || ''; 
 
     let dateObj = parseFlexibleDate(dateStr) || new Date();
 
+    // Lógica de pontos (Peso 02)
     let points = 1;
-    if (cols.length > 8) {
-        for (let j = 8; j < Math.min(cols.length, 14); j++) {
-            if (cols[j] && cols[j].trim().toLowerCase() === 'peso 02') {
-                points = 2;
-                break;
-            }
-        }
+    const rowText = lines[i].toLowerCase();
+    if (rowText.includes('peso 02') || rowText.includes('peso 2')) {
+        points = 2;
     }
 
     data.push({
       player: name.trim(),
       ks: points, 
       date: dateObj.toISOString(),
-      playerRank: rank,
-      respawn: respawn,
-      huntedName: hunted,
-      usualTime: usualTime
+      playerRank: rank.trim(),
+      respawn: respawn.trim(),
+      huntedName: hunted.trim(),
+      usualTime: usualTime.trim()
     });
   }
+  
+  console.log(`Total de registros válidos processados: ${data.length}`);
   return data;
 };
 
@@ -87,7 +157,8 @@ const parseCSVLine = (text: string, delimiter: string): string[] => {
 
 const parseFlexibleDate = (dateStr: string): Date | null => {
     const cleanStr = dateStr.trim();
-    const dateMatch = cleanStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})(?:\s+(\d{1,2})[:h](\d{1,2}))?/i);
+    // Tenta DD/MM/YYYY HH:mm:ss
+    const dateMatch = cleanStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})(?:\s+(\d{1,2})[:h](\d{1,2})[:h]?(\d{1,2})?)?/i);
     if (dateMatch) {
         const day = parseInt(dateMatch[1]);
         const month = parseInt(dateMatch[2]) - 1;
@@ -95,7 +166,8 @@ const parseFlexibleDate = (dateStr: string): Date | null => {
         if (year < 100) year += 2000;
         const hour = dateMatch[4] ? parseInt(dateMatch[4]) : 0;
         const minute = dateMatch[5] ? parseInt(dateMatch[5]) : 0;
-        return new Date(year, month, day, hour, minute);
+        const second = dateMatch[6] ? parseInt(dateMatch[6]) : 0;
+        return new Date(year, month, day, hour, minute, second);
     }
     const iso = new Date(cleanStr);
     return isNaN(iso.getTime()) ? null : iso;
@@ -239,6 +311,7 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
   rawData.filter(row => {
     const rowDate = new Date(row.date);
     if (isNaN(rowDate.getTime())) return false;
+    
     if (frame === TimeFrame.DAILY) return rowDate.toDateString() === now.toDateString();
     if (frame === TimeFrame.WEEKLY) {
         const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7);

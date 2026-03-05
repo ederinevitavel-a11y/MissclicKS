@@ -1,7 +1,6 @@
 
 export enum TimeFrame {
   OVERVIEW = 'OVERVIEW',
-  BLACK_LIST = 'BLACK_LIST',
   DAILY = 'DAILY',
   WEEKLY = 'WEEKLY',
   MONTHLY = 'MONTHLY',
@@ -48,6 +47,7 @@ export interface OverviewData {
       peakHour: string;
       lastSeen: string; // ISO string da última vez visto
       topLocations: { name: string; count: number }[]; 
+      isOnline?: boolean;
     }[]; 
   };
 }
