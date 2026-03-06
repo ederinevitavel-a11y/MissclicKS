@@ -101,8 +101,8 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
         <div className="w-20 h-20 bg-neon-green/20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(10,255,10,0.3)]">
           <CheckCircle className="w-10 h-10 text-neon-green" />
         </div>
-        <h2 className="text-3xl font-display font-black text-white mb-4 uppercase tracking-tighter">Inteligência Transmitida</h2>
-        <p className="text-red-500 font-mono text-sm mb-12 uppercase tracking-widest">A sugestão de alvo está sob análise do alto comando.</p>
+        <h2 className="text-3xl font-display font-black text-white mb-4 uppercase tracking-tighter">Envio Transmitido</h2>
+        <p className="text-red-500 font-mono text-sm mb-12 uppercase tracking-widest">A sugestão está sob análise.</p>
         <button 
           onClick={onBackToIntelligence}
           className="neon-button neon-button-blue w-full"

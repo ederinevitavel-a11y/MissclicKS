@@ -119,8 +119,8 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         <div className="w-16 h-16 bg-neon-green/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(10,255,10,0.3)]">
           <CheckCircle className="w-8 h-8 text-neon-green" />
         </div>
-        <h3 className="text-xl font-display font-black text-white mb-2 uppercase tracking-tighter">Missão Confirmada</h3>
-        <p className="text-gray-500 text-xs font-mono mb-8 uppercase tracking-widest">Entrada registrada no banco de dados central.</p>
+        <h3 className="text-xl font-display font-black text-white mb-2 uppercase tracking-tighter">Registro Realizado</h3>
+        <p className="text-gray-500 text-xs font-mono mb-8 uppercase tracking-widest">KS sujeito a avaliação da Liderança do KS</p>
         
         <button
           onClick={() => {
@@ -145,7 +145,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           onClick={onBack}
           className="flex items-center gap-2 text-xs font-display uppercase tracking-widest text-gray-500 hover:text-white transition-colors mb-4"
         >
-          <span className="text-neon-blue">←</span> Voltar para Inteligência
+          <span className="text-neon-blue">←</span> Voltar para o Painel
         </button>
       )}
       <motion.div 
