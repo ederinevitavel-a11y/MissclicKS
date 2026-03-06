@@ -37,10 +37,15 @@ export interface CharacterStatus {
     time: string;
     level: number;
     reason: string;
+    isMonsterDeath: boolean;
   }[];
 }
 
 export async function fetchCharacterStatus(name: string): Promise<CharacterStatus> {
+  if (!name || name.includes('@')) {
+    return { isOnline: false };
+  }
+
   try {
     const response = await fetch(`https://api.tibiadata.com/v4/character/${encodeURIComponent(name)}`);
     if (!response.ok) {
@@ -57,10 +62,11 @@ export async function fetchCharacterStatus(name: string): Promise<CharacterStatu
       level: char.level,
       experience: char.experience,
       guild: char.guild,
-      recentDeaths: deaths?.slice(0, 2).map(d => ({
+      recentDeaths: deaths?.slice(0, 3).map(d => ({
         time: d.time,
         level: d.level,
-        reason: d.reason
+        reason: d.reason,
+        isMonsterDeath: d.killers.every(k => !k.player)
       }))
     };
   } catch (error) {

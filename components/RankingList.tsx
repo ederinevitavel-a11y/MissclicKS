@@ -1,67 +1,74 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { RankedPlayer } from '../types';
 import { TrendDown, TrendSame, TrendUp } from './NeonIcons';
+import { Hash, Activity, TrendingUp } from 'lucide-react';
 
 interface RankingListProps {
   players: RankedPlayer[];
 }
 
 export const RankingList: React.FC<RankingListProps> = ({ players }) => {
-  // Skip top 3 for the list if there are enough players, otherwise show all
   const displayPlayers = players.length > 3 ? players.slice(3) : [];
 
   if (displayPlayers.length === 0 && players.length <= 3) {
-      return <div className="text-center text-gray-500 py-8 italic">No other contenders yet...</div>
+    return (
+      <div className="text-center py-12">
+        <p className="font-display text-xs uppercase tracking-[0.3em] text-gray-600">No other contenders detected in sector.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-20">
-      <div className="flex justify-between items-center text-xs text-gray-500 uppercase tracking-widest mb-4 px-4 font-display">
-        <span>Rank / Player</span>
-        <div className="flex gap-8">
-            <span className="w-16 text-right">Trend</span>
-            <span className="w-16 text-right">KS</span>
+    <div className="w-full max-w-3xl mx-auto space-y-4">
+      <div className="flex items-center justify-between px-6 py-2 text-[10px] font-display uppercase tracking-[0.2em] text-gray-500 border-b border-white/5">
+        <div className="flex items-center gap-8">
+          <span className="w-8 flex justify-center"><Hash className="w-3 h-3" /></span>
+          <span>Combatant</span>
+        </div>
+        <div className="flex items-center gap-12">
+          <span className="w-12 text-center hidden sm:block"><TrendingUp className="w-3 h-3 mx-auto" /></span>
+          <span className="w-16 text-right"><Activity className="w-3 h-3 ml-auto" /></span>
         </div>
       </div>
       
-      <div className="space-y-3">
-        {displayPlayers.map((player) => (
-          <div 
+      <div className="space-y-2">
+        {displayPlayers.map((player, index) => (
+          <motion.div 
             key={player.name}
-            className="group relative flex items-center justify-between p-4 bg-neon-surface rounded-xl border border-gray-800 hover:border-neon-blue transition-all duration-300 hover:shadow-neon-blue hover:-translate-y-1"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="group cyber-card p-4 flex items-center justify-between hover:border-neon-blue/50 hover:bg-neon-blue/5 transition-all"
           >
-            {/* Rank & Name */}
-            <div className="flex items-center space-x-4">
-              <span className="font-display font-bold text-gray-400 text-lg w-8 text-center">#{player.rank}</span>
-              <div className="flex items-center space-x-3">
-                 <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
-                    <span className="text-xs text-gray-300">{player.name.substring(0, 1)}</span>
-                 </div>
-                 <div className="flex flex-col">
-                    <span className="font-bold text-white tracking-wide group-hover:text-neon-blue transition-colors">{player.name}</span>
-                    <span className="text-xs text-gray-500">{player.gamesPlayed} games</span>
-                 </div>
+            <div className="flex items-center gap-8">
+              <span className="font-display font-black text-gray-600 group-hover:text-neon-blue transition-colors w-8 text-center">
+                {player.rank.toString().padStart(2, '0')}
+              </span>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-display text-xs text-gray-500 group-hover:border-neon-blue/30 group-hover:text-neon-blue transition-all">
+                  {player.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm group-hover:text-white transition-colors">{player.name}</h4>
+                  <p className="text-[10px] text-gray-500 font-mono uppercase">{player.gamesPlayed} KS</p>
+                </div>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="flex items-center gap-8">
-                {/* Trend */}
-                <div className="w-16 flex justify-end">
-                    {player.trend === 'up' && <TrendUp className="w-5 h-5 text-neon-green" />}
-                    {player.trend === 'down' && <TrendDown className="w-5 h-5 text-red-500" />}
-                    {player.trend === 'same' && <TrendSame className="w-5 h-5 text-gray-600" />}
-                </div>
-
-                {/* KS Score */}
-                <div className="w-16 text-right">
-                    <span className="font-mono font-bold text-xl text-white text-shadow-sm">{player.totalKS}</span>
-                </div>
+            <div className="flex items-center gap-12">
+              <div className="w-12 flex justify-center hidden sm:block">
+                {player.trend === 'up' && <TrendUp className="w-4 h-4 text-neon-green" />}
+                {player.trend === 'down' && <TrendDown className="w-4 h-4 text-red-500" />}
+                {player.trend === 'same' && <TrendSame className="w-4 h-4 text-gray-700" />}
+              </div>
+              <div className="w-16 text-right">
+                <span className="font-display font-black text-lg text-white group-hover:neon-text-blue transition-all">
+                  {player.totalKS}
+                </span>
+              </div>
             </div>
-            
-            {/* Background Glow on Hover */}
-            <div className="absolute inset-0 rounded-xl bg-neon-blue opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none" />
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

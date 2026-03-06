@@ -56,3 +56,10 @@ export const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196 7.5 7.5 0 0010.607 16.107z" />
   </svg>
 );
+
+export const CrosshairIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.75 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" />
+  </svg>
+);

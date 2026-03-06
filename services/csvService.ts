@@ -77,7 +77,10 @@ const parseCSV = (csvText: string): RawDataRow[] => {
   
   // Tenta encontrar os índices das colunas dinamicamente
   const idxDate = headers.findIndex(h => h.includes('data') || h.includes('timestamp') || h.includes('carimbo'));
-  const idxName = headers.findIndex(h => h.includes('nome') || h.includes('player') || h.includes('personagem') || h.includes('char'));
+  const idxName = headers.findIndex(h => 
+    (h.includes('nome') || h.includes('player') || h.includes('personagem') || h.includes('char')) && 
+    !h.includes('email') && !h.includes('e-mail')
+  );
   const idxRank = headers.findIndex(h => h.includes('rank') || h.includes('patente'));
   const idxHunted = headers.findIndex(h => h.includes('hunted') || h.includes('vítima') || h.includes('alvo'));
   const idxRespawn = headers.findIndex(h => h.includes('respawn') || h.includes('respaw') || h.includes('local') || h.includes('área'));
@@ -101,7 +104,13 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     }
 
     // Usa os índices detectados ou fallbacks fixos (0, 2, 3, 4, 5)
-    const name = cols[idxName !== -1 ? idxName : 2];
+    let name = cols[idxName !== -1 ? idxName : 2];
+    
+    // Se a coluna cair em um email (comum em forms), tenta a próxima coluna
+    if (name && name.includes('@')) {
+      name = cols[idxName !== -1 ? idxName + 1 : 3];
+    }
+
     if (!name || name.trim() === '') continue;
 
     const dateStr = cols[idxDate !== -1 ? idxDate : 0];

@@ -1,14 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 interface KSRegistrationFormProps {
   onSuccess?: () => void;
   overviewData?: any;
+  onBack?: () => void;
 }
 
-export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData }) => {
+export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData, onBack }) => {
   const [formData, setFormData] = useState({
     email: '',
     charName: '',
@@ -50,30 +51,20 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
     }
   }, [overviewData]);
 
-  const getRankColor = (rank: string) => {
-    switch (rank) {
-      case 'Leader': return '#FFD700';
-      case 'Challenger': return '#FF0000';
-      case 'Guardian': return '#A020F0';
-      case 'Loyal': return '#00FF00';
-      case 'Member': return '#FFFFFF';
-      case 'Begginer': return '#0000FF';
-      case 'Prata': return '#CD7F32';
-      default: return 'inherit';
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.some(f => !f) || printNames.some(n => !n.trim())) {
-      setStatus({ type: 'error', message: 'Por favor, anexe e nomeie as prints.' });
+      setStatus({ type: 'error', message: 'Please attach and name screenshots.' });
       return;
     }
     setIsSubmitting(true);
     setStatus({ type: null, message: '' });
 
     try {
-      // 1. Upload das imagens
+      if (!supabase) {
+        throw new Error("Configuração pendente: As variáveis de ambiente do Supabase não foram configuradas.");
+      }
+
       const printsData = await Promise.all(
         files.map(async (file, index) => {
           if (!file) return null;
@@ -83,7 +74,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           
           if (error) {
             if (error.message === 'Bucket not found') {
-              throw new Error('Configuração pendente: O bucket "ks_proofs" não foi encontrado no Supabase. Crie-o no dashboard.');
+              throw new Error('Configuração pendente: O bucket "ks_proofs" não foi encontrado no Supabase.');
             }
             throw error;
           }
@@ -93,24 +84,15 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         })
       );
 
-      // 2. Envio para o Google Sheets
       const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
       if (!scriptUrl) throw new Error('URL do Script não definida');
       
-      console.log('URL DO SCRIPT CARREGADA:', scriptUrl);
-
       const formDataToSend = new FormData();
-      Object.entries(formData).forEach(([key, value]) => formDataToSend.append(key, value));
-      
-      // Preenchendo colunas N e O com os links das prints
+      Object.entries(formData).forEach(([key, value]) => formDataToSend.append(key, value as string));
       formDataToSend.append('print1', printsData[0]?.url || '');
       formDataToSend.append('print2', printsData[1]?.url || '');
-      
       formDataToSend.append('timestamp', new Date().toLocaleString('pt-BR'));
       formDataToSend.append('sheetName', 'Respostas ao formulário 2');
-
-      console.log('Enviando para:', scriptUrl);
-      console.log('Dados:', Object.fromEntries(formDataToSend.entries()));
 
       await fetch(scriptUrl, {
         method: 'POST',
@@ -118,29 +100,27 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         body: formDataToSend,
       });
 
-      setStatus({ type: 'success', message: 'Registro e prints enviados com sucesso!' });
+      setStatus({ type: 'success', message: 'Entry and screenshots sent successfully!' });
       setShowConfirmation(true);
       setIsSubmitting(false);
-    } catch (error) {
-      console.error(error);
-      setStatus({ type: 'error', message: 'Erro ao enviar. Tente novamente.' });
+    } catch (error: any) {
+      setStatus({ type: 'error', message: error.message || 'Error sending. Try again.' });
       setIsSubmitting(false);
     }
   };
 
   if (showConfirmation) {
     return (
-      <div className="max-w-sm mx-auto bg-black/90 border border-gray-800 border-l-4 border-l-green-500 rounded-xl p-6 shadow-2xl text-center relative overflow-hidden">
-        {/* Subtle glow effect */}
-        <div className="absolute inset-0 bg-green-500/5 blur-3xl -z-10"></div>
-        
-        <div className="flex justify-center mb-4">
-          <div className="p-2 bg-green-500/10 rounded-full">
-            <CheckCircle className="w-8 h-8 text-green-500" />
-          </div>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-sm mx-auto cyber-card p-8 text-center cyber-border"
+      >
+        <div className="w-16 h-16 bg-neon-green/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(10,255,10,0.3)]">
+          <CheckCircle className="w-8 h-8 text-neon-green" />
         </div>
-        <h3 className="text-lg font-display font-black text-white mb-1 tracking-tight">REGISTRO CONFIRMADO!</h3>
-        <p className="text-gray-400 mb-6 font-mono text-xs">Seu KS foi registrado com sucesso.</p>
+        <h3 className="text-xl font-display font-black text-white mb-2 uppercase tracking-tighter">Mission Confirmed</h3>
+        <p className="text-gray-500 text-xs font-mono mb-8 uppercase tracking-widest">Entry registered in central database.</p>
         
         <button
           onClick={() => {
@@ -150,174 +130,193 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             setPrintNames(['', '']);
             setStatus({ type: null, message: '' });
           }}
-          className="w-full py-3 font-display font-black uppercase tracking-[0.2em] transition-all relative group overflow-hidden bg-transparent text-green-500 border-2 border-green-500 hover:text-black"
-          style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0 100%)' }}
+          className="neon-button neon-button-blue w-full"
         >
-          <div className="absolute inset-0 bg-green-500 transform translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 -z-10"></div>
-          <span className="relative z-10 text-sm">REGISTRAR OUTRO KS</span>
+          New Entry
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto bg-neon-surface/50 border border-gray-800 rounded-xl p-6 shadow-2xl">
-      <h3 className="text-xl font-display font-black text-red-500 mb-6 flex items-center gap-2">
-        <span className="w-2 h-6 bg-red-600 rounded-full"></span>
-        REGISTRO DE KS
-      </h3>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {onBack && (
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 text-xs font-display uppercase tracking-widest text-gray-500 hover:text-white transition-colors mb-4"
+        >
+          <span className="text-neon-blue">←</span> Back to Intelligence
+        </button>
+      )}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="cyber-card p-8 cyber-border"
+      >
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-1 h-8 bg-neon-blue rounded-full" />
+          <h3 className="text-xl font-display font-black text-white uppercase tracking-tighter">KS Registration</h3>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-[10px] uppercase font-mono text-gray-500 mb-1">Endereço de e-mail</label>
-          <input
-            required
-            type="email"
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <InputGroup 
+            icon={<Mail className="w-4 h-4" />}
+            label="Email Address"
             name="email"
+            type="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="seu@email.com"
-            className="w-full bg-black/40 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:border-neon-blue outline-none transition-all text-white"
+            placeholder="operator@system.com"
+          />
+          <InputGroup 
+            icon={<User className="w-4 h-4" />}
+            label="Character Name"
+            name="charName"
+            value={formData.charName}
+            onChange={handleChange}
+            placeholder="Enter combatant name"
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] uppercase font-mono text-gray-500 mb-1">Nome do Char</label>
-            <input
-              required
-              type="text"
-              name="charName"
-              value={formData.charName}
-              onChange={handleChange}
-              placeholder="Seu personagem"
-              className="w-full bg-black/40 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:border-neon-blue outline-none transition-all text-white"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] uppercase font-mono text-gray-500 mb-1">Qual é o seu Rank ?</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
+              <Shield className="w-3 h-3" /> Rank
+            </label>
             <select
               required
               name="rank"
               value={formData.rank}
               onChange={handleChange}
-              className="w-full bg-black/80 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-neon-blue outline-none transition-all text-white"
-              style={{ color: getRankColor(formData.rank) }}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all appearance-none cursor-pointer"
             >
-              <option value="" disabled className="text-gray-400">Selecione seu rank</option>
-              <option value="Leader" className="bg-black text-[#FFD700]">Leader</option>
-              <option value="Challenger" className="bg-black text-[#FF0000]">Challenger</option>
-              <option value="Guardian" className="bg-black text-[#A020F0]">Guardian</option>
-              <option value="Loyal" className="bg-black text-[#00FF00]">Loyal</option>
-              <option value="Member" className="bg-black text-[#FFFFFF]">Member</option>
-              <option value="Begginer" className="bg-black text-[#0000FF]">Begginer</option>
-              <option value="Prata" className="bg-black text-[#CD7F32]">Prata</option>
+              <option value="" disabled className="bg-neon-dark">Select Rank</option>
+              {['Leader', 'Challenger', 'Guardian', 'Loyal', 'Member', 'Begginer', 'Prata'].map(rank => (
+                <option key={rank} value={rank} className="bg-neon-dark">{rank}</option>
+              ))}
             </select>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-[10px] uppercase font-mono text-gray-500 mb-1">Qual é o Hunted que você deu KS ?</label>
-          <input
-            required
-            type="text"
+          <InputGroup 
+            icon={<Target className="w-4 h-4" />}
+            label="Target Name"
             name="huntedName"
-            list="hunted-suggestions"
             value={formData.huntedName}
             onChange={handleChange}
-            placeholder="Selecione ou digite o nome do Hunted"
-            className="w-full bg-black/80 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-neon-blue outline-none transition-all text-white"
+            placeholder="Identify target"
+            list="hunted-suggestions"
           />
           <datalist id="hunted-suggestions">
-            {huntedSuggestions.map(hunted => (
-              <option key={hunted} value={hunted} />
-            ))}
+            {huntedSuggestions.map(hunted => <option key={hunted} value={hunted} />)}
           </datalist>
         </div>
 
-        <div>
-          <label className="block text-[10px] uppercase font-mono text-gray-500 mb-1">Em qual Respawn você deu KS ?</label>
-          <select
-            required
-            name="respawn"
-            value={formData.respawn}
-            onChange={handleChange}
-            className="w-full bg-black/80 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-neon-blue outline-none transition-all text-white"
-          >
-            <option value="" disabled className="text-gray-400">Selecione o Respawn</option>
-            {[
-              "Asura Espelho", "Catedral", "Caminho Ferumbras", "Carnivors", "Cobra Castelo",
-              "Crypt Warden", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Goannas",
-              "Gold Token", "Livraria de Fogo", "Livraria de Gelo", "Livraria de Energia",
-              "Livraria de Terra", "Lost Souls", "Lower Roshamuul", "Upper Roshamull",
-              "Nagas", "Nightmare Isles", "POI", "Plague Seal", "Prision",
-              "Seacrest", "True Asura", "Warzones", "Werelions", "Werehyena",
-              "West", "WereTigers"
-            ].map(respawn => (
-              <option key={respawn} value={respawn} className="bg-black text-white">{respawn}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-[10px] uppercase font-mono text-gray-500 mb-1">Qual é o seu código de identificação ?</label>
-          <input
-            required
-            type="text"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
+              <MapPin className="w-3 h-3" /> Respawn
+            </label>
+            <select
+              required
+              name="respawn"
+              value={formData.respawn}
+              onChange={handleChange}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all appearance-none cursor-pointer"
+            >
+              <option value="" disabled className="bg-neon-dark">Select Respawn</option>
+              {[
+                "Asura Espelho", "Catedral", "Caminho Ferumbras", "Carnivors", "Cobra Castelo",
+                "Crypt Warden", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Goannas",
+                "Gold Token", "Livraria de Fogo", "Livraria de Gelo", "Livraria de Energia",
+                "Livraria de Terra", "Lost Souls", "Lower Roshamuul", "Upper Roshamull",
+                "Nagas", "Nightmare Isles", "POI", "Plague Seal", "Prision",
+                "Seacrest", "True Asura", "Warzones", "Werelions", "Werehyena",
+                "West", "WereTigers"
+              ].map(respawn => (
+                <option key={respawn} value={respawn} className="bg-neon-dark">{respawn}</option>
+              ))}
+            </select>
+          </div>
+          <InputGroup 
+            icon={<Key className="w-4 h-4" />}
+            label="Access Code"
             name="idCode"
             value={formData.idCode}
             onChange={handleChange}
-            placeholder="Código MJR"
-            className="w-full bg-black/40 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:border-neon-blue outline-none transition-all text-white"
+            placeholder="MJR-XXXX"
           />
         </div>
 
         {status.message && (
-          <div className={`p-3 rounded-lg text-xs font-mono ${status.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className={`p-4 rounded-xl text-xs font-mono border ${status.type === 'success' ? 'bg-neon-green/10 text-neon-green border-neon-green/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}
+          >
             {status.message}
-          </div>
+          </motion.div>
         )}
 
-        {/* Nova seção de Upload */}
-        <div className="pt-4 border-t border-gray-800">
-          <label className="block text-[10px] uppercase font-mono text-gray-500 mb-2">Comprovantes (Prints)</label>
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <p className="text-[10px] font-display uppercase text-gray-500 tracking-widest flex items-center gap-2">
+            <Upload className="w-3 h-3" /> Visual Evidence (Screenshots)
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[0, 1].map((index) => (
-              <div key={index} className="border-2 border-dashed border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center bg-black/40 hover:border-neon-purple transition-colors">
-                <Upload className="w-8 h-8 text-gray-500 mb-2" />
+              <div key={index} className="cyber-card p-4 bg-white/5 border-dashed border-white/10 hover:border-neon-blue transition-all group">
                 <input 
                   type="text" 
-                  placeholder={`Nome da Print ${index + 1}`} 
+                  placeholder={`Image ID ${index + 1}`} 
                   value={printNames[index]}
                   onChange={(e) => handleNameChange(index, e.target.value)}
-                  className="w-full bg-black/60 border border-gray-800 rounded px-2 py-1 text-xs text-white mb-2 outline-none focus:border-neon-blue"
+                  className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] font-display uppercase tracking-widest text-white mb-3 outline-none focus:border-neon-blue"
                 />
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(index, e)} className="hidden" id={`file-${index}`} />
-                <label htmlFor={`file-${index}`} className="cursor-pointer text-xs text-neon-blue hover:underline">
-                  {files[index] ? files[index]?.name : 'Selecionar imagem'}
+                <label htmlFor={`file-${index}`} className="flex items-center justify-center gap-2 cursor-pointer py-2 bg-white/5 rounded-lg text-[10px] font-display uppercase text-neon-blue hover:bg-neon-blue hover:text-black transition-all">
+                  <Upload className="w-3 h-3" />
+                  {files[index] ? files[index]?.name : 'Upload'}
                 </label>
               </div>
             ))}
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full py-3 md:py-4 font-display font-black uppercase tracking-[0.2em] transition-all relative group overflow-hidden
-            ${isSubmitting 
-              ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-              : 'bg-transparent text-neon-blue border-2 border-neon-blue hover:text-black'}`}
-          style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0 100%)' }}
-        >
-          {!isSubmitting && (
-            <div className="absolute inset-0 bg-neon-blue transform translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 -z-10"></div>
-          )}
-          <span className="relative z-10">
-            {isSubmitting ? 'PROCESSANDO...' : 'CONFIRMAR REGISTRO'}
-          </span>
-        </button>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="mt-6 px-4 py-2 bg-neon-blue/10 border border-neon-blue text-neon-blue font-display font-bold uppercase tracking-widest rounded-lg hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_rgba(0,243,255,0.5)] transition-all duration-300 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+          >
+            {isSubmitting ? (
+              <span className="animate-pulse">Processing...</span>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                Confirm KS
+              </>
+            )}
+          </button>
+        </div>
       </form>
+      </motion.div>
     </div>
   );
 };
+
+const InputGroup: React.FC<{ icon: React.ReactNode; label: string; name: string; value: string; onChange: any; placeholder: string; type?: string; list?: string }> = ({ icon, label, name, value, onChange, placeholder, type = 'text', list }) => (
+  <div className="space-y-2">
+    <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
+      {icon} {label}
+    </label>
+    <input
+      required
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      list={list}
+      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all placeholder:text-gray-700"
+    />
+  </div>
+);

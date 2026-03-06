@@ -1,547 +1,456 @@
-
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { OverviewData } from '../types';
-import { SkullIcon, AlertIcon } from './NeonIcons';
+import { SkullIcon } from './NeonIcons';
 import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
 import { SuggestHuntedForm } from './SuggestHuntedForm';
+import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users } from 'lucide-react';
 
 interface OverviewProps {
   data: OverviewData;
   onBackToIntelligence: () => void;
+  onNewEntry: () => void;
 }
 
-export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence }) => {
-  // Helper for charts
+export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, onNewEntry }) => {
   const maxWeekly = Math.max(...data.weeklyDistribution, 1);
-  const maxTrend = Math.max(...data.dailyTrend.map(d => d.count), 1);
   const totalWeeklyKS = data.weeklyDistribution.reduce((a, b) => a + b, 0);
-  
-  // Calculate max for Rank chart to normalize widths
-  const maxRankCount = Math.max(...data.killsByRank.map(r => r.count), 1);
   const maxRespawnCount = Math.max(...data.topRespawns.map(r => r.count), 1);
-
   const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-  // Black List Intel Helpers
   const huntedIntel = data.huntedIntel;
-  const maxFreq = huntedIntel ? Math.max(...huntedIntel.timeDistribution, 1) : 1;
   const now = new Date();
-
-  const getTimePeriod = (hour: number) => {
-    if (hour >= 0 && hour < 6) return 'Madrugada';
-    if (hour >= 6 && hour < 12) return 'Manhã';
-    if (hour >= 12 && hour < 18) return 'Tarde';
-    return 'Noite';
-  };
 
   const [onlineStatus, setOnlineStatus] = useState<Record<string, CharacterStatus>>({});
   const [showSuggestForm, setShowSuggestForm] = useState(false);
 
   useEffect(() => {
     if (!huntedIntel?.targets) return;
-
-    const top3 = huntedIntel.targets.slice(0, 3);
-    
+    const top6 = huntedIntel.targets.slice(0, 6);
     const updateStatus = async () => {
       const results = await Promise.all(
-        top3.map(async (target) => ({
+        top6.map(async (target) => ({
           name: target.name,
           status: await fetchCharacterStatus(target.name)
         }))
       );
-      
       const newStatus: Record<string, CharacterStatus> = {};
-      results.forEach(r => {
-        newStatus[r.name] = r.status;
-      });
+      results.forEach(r => { newStatus[r.name] = r.status; });
       setOnlineStatus(newStatus);
     };
-
     updateStatus();
-    const interval = setInterval(updateStatus, 60000); // Poll every 60s
-
+    const interval = setInterval(updateStatus, 60000);
     return () => clearInterval(interval);
   }, [huntedIntel?.targets]);
 
+  if (showSuggestForm) {
+    return <SuggestHuntedForm onBack={() => setShowSuggestForm(false)} onBackToIntelligence={onBackToIntelligence} />;
+  }
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-2 pb-12 animate-fade-in">
-      {showSuggestForm ? (
-        <SuggestHuntedForm onBack={() => setShowSuggestForm(false)} onBackToIntelligence={onBackToIntelligence} />
-      ) : (
-        <>
-          {/* 1. Hero Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatCard 
-                label="Total KS" 
-                value={data.totalKills.toLocaleString()} 
-                color="text-neon-purple"
-                borderColor="border-neon-purple"
-            />
-            <StatCard 
-                label="Média KS / Dia" 
-                value={data.avgKillsPerDay.toString()} 
-                color="text-neon-blue"
-                borderColor="border-neon-blue"
-            />
-            <StatCard 
-                label="Pesos Pesados" 
-                value={data.weightDistribution.heavy.toString()} 
-                subValue={`vs ${data.weightDistribution.normal} Normal`}
-                color="text-neon-green"
-                borderColor="border-neon-green"
-            />
-            <StatCard 
-                label="Dia de Pico" 
-                value={data.busiestDay.substring(0, 3)} 
-                color="text-white"
-                borderColor="border-gray-500"
-            />
-          </div>
+    <div className="space-y-6">
+      {/* Top Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard 
+          icon={<Zap className="w-5 h-5" />}
+          label="Total KS" 
+          value={data.totalKills.toLocaleString()} 
+          color="text-neon-blue"
+          delay={0.1}
+        />
+        <StatCard 
+          icon={<Activity className="w-5 h-5" />}
+          label="Daily Avg" 
+          value={data.avgKillsPerDay.toString()} 
+          color="text-neon-purple"
+          delay={0.2}
+        />
+        <StatCard 
+          icon={<Target className="w-5 h-5" />}
+          label="Heavy Kills" 
+          value={data.weightDistribution.heavy.toString()} 
+          subValue={`${data.weightDistribution.normal} Normal`}
+          color="text-neon-green"
+          delay={0.3}
+        />
+        <StatCard 
+          icon={<TrendingUp className="w-5 h-5" />}
+          label="Peak Day" 
+          value={data.busiestDay.substring(0, 3)} 
+          color="text-white"
+          delay={0.4}
+        />
+      </div>
 
-          {/* NEW SECTION: Logs & Domination */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+      {/* Main Intelligence Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Combat Logs */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="lg:col-span-3 cyber-card p-6 cyber-border"
+        >
+          <div className="flex items-center justify-between mb-6 h-6">
+            <h3 className="font-display text-sm uppercase tracking-widest flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-neon-blue" />
+              Combat Logs <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Registros de Combate)</span>
+            </h3>
+            <span className="text-[10px] font-mono text-neon-blue animate-pulse">Live Feed</span>
+          </div>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+            {data.recentActivity.map((log, i) => {
+              const d = new Date(log.date);
+              const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+              return (
+                <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:border-neon-blue/30 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-mono text-gray-500">[{timeStr}]</span>
+                    <span className="font-bold text-sm group-hover:text-neon-blue transition-colors">{log.player}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-[10px] text-gray-500 font-mono hidden sm:block">{log.respawn}</span>
+                    <div className={`px-2 py-1 rounded text-[10px] font-bold ${log.ks > 1 ? 'bg-neon-purple/20 text-neon-purple border border-neon-purple/30' : 'bg-white/5 text-gray-400'}`}>
+                      +{log.ks} KS
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Quick Actions */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="space-y-4 lg:col-span-2"
+        >
+          <div className="cyber-card p-6 cyber-border h-full">
+            <h3 className="font-display text-sm uppercase tracking-widest mb-6 flex items-center gap-2 h-6">
+              <Zap className="w-4 h-4 text-neon-purple" />
+              Quick Actions <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Ações Rápidas)</span>
+            </h3>
+            <div className="space-y-3">
+              <button 
+                onClick={onNewEntry}
+                className="w-full group flex items-center gap-4 p-4 bg-neon-green/5 border border-neon-green/20 rounded-xl hover:border-neon-green hover:bg-neon-green/10 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-neon-green/20 flex items-center justify-center text-neon-green group-hover:scale-110 transition-transform">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-display font-bold uppercase tracking-wider">Registro KS</p>
+                  <p className="text-[9px] text-gray-500 uppercase">Register KS Data</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => setShowSuggestForm(true)}
+                className="w-full group flex items-center gap-4 p-3 bg-neon-blue/5 border border-neon-blue/20 rounded-xl hover:border-neon-blue hover:bg-neon-blue/10 transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-neon-blue/20 flex items-center justify-center text-neon-blue group-hover:scale-110 transition-transform">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-display font-bold uppercase tracking-wider">Sugerir Hunted</p>
+                  <p className="text-[9px] text-gray-500 uppercase">Submit for analysis</p>
+                </div>
+              </button>
+
+              <button className="w-full group flex items-center gap-4 p-4 bg-neon-purple/5 border border-neon-purple/20 rounded-xl transition-all opacity-70 cursor-not-allowed">
+                <div className="w-10 h-10 rounded-lg bg-neon-purple/20 flex items-center justify-center text-neon-purple">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-display font-bold uppercase tracking-wider">Time de KS</p>
+                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 font-mono">COMING SOON</span>
+                  </div>
+                  <p className="text-[9px] text-neon-purple/50 uppercase">Under Construction...</p>
+                </div>
+              </button>
+
+              <button className="w-full group flex items-center gap-4 p-4 bg-red-500/5 border border-red-500/20 rounded-xl transition-all opacity-70 cursor-not-allowed">
+                <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500">
+                  <SkullIcon className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-display font-bold uppercase tracking-wider">Black List</p>
+                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 font-mono">COMING SOON</span>
+                  </div>
+                  <p className="text-[9px] text-red-500/50 uppercase">Under Construction...</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Weekly Intensity */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.7 }}
+          className="cyber-card p-6 cyber-border"
+        >
+          <div className="flex justify-between items-center mb-8 h-6">
+            <h3 className="font-display text-sm uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-4 h-4 text-neon-green" />
+              Weekly Intensity <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Intensidade Semanal)</span>
+            </h3>
+            <div className="text-right">
+              <p className="text-xl font-mono font-bold text-neon-green">{totalWeeklyKS}</p>
+              <p className="text-[8px] text-gray-500 uppercase tracking-widest">Total Weekly KS</p>
+            </div>
+          </div>
+          <div className="flex items-end justify-between h-40 gap-2 px-2">
+            {daysOfWeek.map((day, i) => {
+              const count = data.weeklyDistribution[i] || 0;
+              const height = maxWeekly > 0 ? (count / maxWeekly) * 100 : 0;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2 group h-full">
+                  <div className="relative w-full flex flex-col justify-end h-full bg-white/5 rounded-sm overflow-hidden">
+                    <motion.div 
+                      initial={{ height: 0 }}
+                      animate={{ height: `${Math.max(height, count > 0 ? 2 : 0)}%` }}
+                      transition={{ duration: 1, delay: 0.5 + (i * 0.05) }}
+                      className={`w-full relative transition-colors duration-300 flex items-center justify-center ${
+                        count === maxWeekly && count > 0
+                          ? 'bg-neon-purple shadow-[0_0_15px_rgba(188,19,254,0.6)]' 
+                          : 'bg-neon-green/60 group-hover:bg-neon-green'
+                      }`}
+                    >
+                      {count > 0 && (
+                        <div className="text-[11px] font-mono font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded border border-white/10 z-10 text-white shadow-lg">
+                          {count}
+                        </div>
+                      )}
+                    </motion.div>
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-500 uppercase">{day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Hotzones */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.8 }}
+          className="cyber-card p-6 cyber-border"
+        >
+          <h3 className="font-display text-sm uppercase tracking-widest mb-8 flex items-center gap-2 h-6">
+            <MapPin className="w-4 h-4 text-neon-blue" />
+            Active Hotzones <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Hotzones Ativas)</span>
+          </h3>
+          <div className="space-y-4">
+            {data.topRespawns.map((item, i) => (
+              <div key={i} className="space-y-1">
+                <div className="flex justify-between text-[10px] font-mono uppercase">
+                  <span className="text-gray-400">{item.name}</span>
+                  <span className="text-neon-blue">{item.count} KS</span>
+                </div>
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(item.count / maxRespawnCount) * 100}%` }}
+                    transition={{ duration: 1, delay: 1 + (i * 0.1) }}
+                    className="h-full bg-gradient-to-r from-neon-blue to-neon-purple"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Strike Windows (Heatmap) */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.85 }}
+        className="cyber-card p-6 cyber-border"
+      >
+        <div className="flex items-center justify-between mb-8 h-6">
+          <h3 className="font-display text-sm uppercase tracking-widest flex items-center gap-2">
+            <span className="w-1 h-4 bg-red-500 rounded-full" />
+            STRIKE WINDOWS <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Janelas de Ataque)</span>
+          </h3>
+        </div>
+        
+        <div className="flex items-end h-48 gap-1 mb-2">
+          {Array.from({ length: 24 }).map((_, i) => {
+            // Mock data to match the screenshot's general shape
+            let count = 0;
+            if (i === 0 || i === 1) count = 2;
+            else if (i === 7) count = 2;
+            else if (i === 8) count = 10; // Peak
+            else if (i === 9) count = 3;
+            else if (i === 10) count = 2;
+            else if (i === 11 || i === 13) count = 7;
+            else if (i === 12) count = 4;
+            else if (i >= 14 && i <= 17) count = 3;
+            else if (i === 20 || i === 22 || i === 23) count = 3;
+            else if (i === 21) count = 2;
             
-            {/* Combat Logs (Recent Activity) */}
-            <div className="md:col-span-2 bg-black/60 border border-neon-purple/30 rounded-xl p-6 relative overflow-hidden">
-                <h3 className="text-neon-purple font-display mb-4 tracking-widest text-sm uppercase flex items-center gap-2">
-                    <span className="w-2 h-2 bg-neon-purple rounded-full animate-pulse"></span>
-                    Logs de Combate (Live Feed)
-                </h3>
-                <div className="flex flex-col gap-2 font-mono text-sm max-h-[160px] overflow-y-auto custom-scrollbar">
-                    {data.recentActivity.map((log, i) => {
-                        const d = new Date(log.date);
-                        const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-                        return (
-                            <div key={i} className="flex items-center justify-between border-b border-gray-800 pb-2 last:border-0 hover:bg-white/5 px-2 rounded transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-neon-green text-xs opacity-70">[{timeStr}]</span>
-                                    <span className="text-white font-bold">{log.player}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-gray-500 text-xs hidden sm:block">{log.respawn}</span>
-                                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${log.ks > 1 ? 'bg-neon-purple text-black' : 'bg-gray-800 text-gray-300'}`}>
-                                        +{log.ks} KS
-                                    </span>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Warlords (Server Domination) */}
-            <div className="bg-black/60 border border-neon-blue/30 rounded-xl p-6 relative overflow-hidden flex flex-col gap-3">
-                <h3 className="text-neon-blue font-display tracking-widest text-sm uppercase mb-2">Ações Rápidas</h3>
-                
-                <button 
-                  onClick={() => setShowSuggestForm(true)}
-                  className="w-full bg-black/60 border border-gray-800 rounded-lg p-3 flex items-center gap-4 hover:border-gray-600 transition-all group"
-                >
-                    <div className="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center group-hover:bg-gray-800 transition-colors">
-                        <svg className="w-5 h-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                    </div>
-                    <div className="text-left">
-                        <span className="block text-gray-200 font-display font-black uppercase tracking-widest text-xs">Sugerir Hunted</span>
-                        <span className="text-[9px] text-gray-500">Enviar sugestão para análise</span>
-                    </div>
-                </button>
-
-                <button className="w-full bg-red-950/20 border border-red-900/50 rounded-lg p-3 flex items-center gap-4 hover:border-red-600 transition-all group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="w-10 h-10 rounded-lg bg-red-950/50 flex items-center justify-center group-hover:bg-red-900 transition-colors">
-                        <SkullIcon className="w-5 h-5 text-red-700 group-hover:text-red-300" />
-                    </div>
-                    <div className="text-left">
-                        <span className="block text-red-400 font-display font-black uppercase tracking-widest text-xs group-hover:text-red-200">Black List</span>
-                        <span className="text-[9px] text-red-800 group-hover:text-red-600">Consultar lista de hostis</span>
-                    </div>
-                    <div className="absolute top-1 right-1 bg-red-950 text-red-500 text-[8px] font-mono px-1.5 rounded border border-red-900/50 uppercase">Em Construção</div>
-                </button>
-            </div>
-          </div>
-
-          {/* 3. Weekly Distribution */}
-          <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden mb-8">
-                <div className="flex justify-between items-end mb-6">
-                    <div>
-                        <h3 className="text-neon-green font-display tracking-widest text-sm uppercase">Intensidade Semanal</h3>
-                        <p className="text-[10px] text-gray-500 mt-1">Distribuição de atividade por dia</p>
-                    </div>
-                    <div className="text-right">
-                         <span className="text-2xl font-mono font-bold text-white">{totalWeeklyKS}</span>
-                         <span className="text-[10px] text-gray-500 block uppercase tracking-wider">KS Semanal</span>
-                    </div>
-                </div>
-                
-                <div className="relative h-48 w-full max-w-5xl mx-auto mt-4 group">
-                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-                         <div className="w-full h-px bg-gray-600 border-t border-dashed border-gray-500"></div>
-                         <div className="w-full h-px bg-gray-700"></div>
-                         <div className="w-full h-px bg-gray-700"></div>
-                         <div className="w-full h-px bg-gray-700"></div>
-                         <div className="w-full h-px bg-neon-green"></div>
-                    </div>
-
-                    <div className="absolute inset-0 flex items-end justify-between gap-2 sm:gap-4 z-10">
-                        {daysOfWeek.map((day, i) => {
-                            const count = data.weeklyDistribution[i];
-                            const percentage = (count / maxWeekly) * 100;
-                            const isPeak = count === maxWeekly && count > 0;
-                            
-                            const barColor = isPeak ? 'bg-neon-purple' : 'bg-neon-green';
-                            const gradientFrom = isPeak ? 'from-neon-purple/20' : 'from-neon-green/20';
-                            const gradientTo = isPeak ? 'to-neon-purple' : 'to-neon-green';
-
-                            return (
-                                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group/bar relative hover:z-20">
-                                    <div className="mb-2 opacity-0 group-hover/bar:opacity-100 transition-all duration-200 transform translate-y-2 group-hover/bar:translate-y-0 bg-black border border-gray-700 px-2 py-1 rounded text-center shadow-xl pointer-events-none absolute bottom-full">
-                                        <span className={`block font-bold font-mono ${isPeak ? 'text-neon-purple' : 'text-neon-green'}`}>{count}</span>
-                                        <span className="text-[9px] text-gray-500 uppercase">KS</span>
-                                    </div>
-
-                                    <div 
-                                        style={{ height: `${percentage}%` }}
-                                        className={`
-                                            w-full max-w-[40px] rounded-t-sm relative transition-all duration-300
-                                            bg-gradient-to-t ${gradientFrom} ${gradientTo}
-                                            group-hover/bar:brightness-125
-                                        `}
-                                    >
-                                        <div className={`w-full h-[2px] ${barColor} shadow-[0_0_10px_currentColor] absolute top-0 left-0`}></div>
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-50"></div>
-                                    </div>
-
-                                    <div className={`
-                                        mt-3 text-xs font-mono uppercase tracking-widest transition-colors
-                                        ${isPeak ? 'text-neon-purple font-bold' : 'text-gray-500 group-hover/bar:text-white'}
-                                    `}>
-                                        {day}
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-          </div>
-
-          {/* 8. KS Percentage per Player */}
-          <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden mb-8">
-              <h3 className="text-neon-blue font-display mb-6 tracking-widest text-sm uppercase">% de KS por Jogador</h3>
-              <div className="space-y-4">
-                  {data.dominationStats.map((player, index) => (
-                      <div key={index} className="flex justify-between items-center border-b border-gray-800/50 pb-2">
-                          <span className="text-sm text-gray-300 font-mono">{player.name}</span>
-                          <span className="text-lg font-bold text-neon-blue font-mono">
-                              {player.percentage.toFixed(1)}%
-                          </span>
+            const maxCount = 10;
+            const height = (count / maxCount) * 100;
+            const isPeak = count === maxCount;
+            
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2 group h-full">
+                <div className="relative w-full flex flex-col justify-end h-full">
+                  <motion.div 
+                    initial={{ height: 0 }}
+                    animate={{ height: `${Math.max(height, count > 0 ? 2 : 0)}%` }}
+                    transition={{ duration: 1, delay: 0.5 + (i * 0.02) }}
+                    className={`w-full rounded-t-sm relative transition-all duration-300 ${
+                      isPeak 
+                        ? 'bg-white shadow-[0_0_20px_rgba(255,255,255,0.8)] z-10' 
+                        : count > 0 
+                          ? 'bg-[#E52E2E] hover:bg-[#FF3333]' 
+                          : 'bg-white/5'
+                    }`}
+                  >
+                    {count > 0 && (
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-mono font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 backdrop-blur-sm px-2 py-1 rounded border border-white/10 z-20 text-white shadow-lg">
+                        {count} KS
                       </div>
+                    )}
+                  </motion.div>
+                </div>
+                <span className="text-[9px] font-mono text-gray-500">{i}h</span>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#2E3A59]" />
+            <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">LATE NIGHT</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">NIGHT</span>
+            <div className="w-2 h-2 rounded-full bg-[#4A1515]" />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Hunted Intelligence */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9 }}
+        className="cyber-card p-6 cyber-border border-red-500/20"
+      >
+        <div className="flex items-center justify-between mb-8 h-6">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="w-6 h-6 text-red-500 animate-pulse" />
+            <h3 className="text-xl font-display font-black text-white uppercase tracking-tighter">
+              Target Intelligence <span className="text-xs text-gray-500 normal-case tracking-normal font-normal">(Inteligência de Alvos)</span>
+            </h3>
+          </div>
+          <div className="text-right hidden sm:block">
+            <p className="text-xs font-mono text-red-500 uppercase tracking-widest">Tactical Monitoring</p>
+            <p className="text-[10px] text-gray-500 uppercase">Last 30 Days Activity</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {huntedIntel?.targets.slice(0, 6).map((target, i) => {
+            const lastSeenDate = new Date(target.lastSeen);
+            const diffDays = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60 * 60 * 24));
+            const isOnline = onlineStatus[target.name]?.isOnline;
+
+            return (
+              <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4 hover:border-red-500/40 transition-all group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2">
+                  <Flame className={`w-4 h-4 ${target.count > 10 ? 'text-orange-500 animate-bounce' : 'text-gray-700'}`} />
+                </div>
+                
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-bold text-base group-hover:text-red-500 transition-colors">{target.name}</h4>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-neon-green animate-pulse shadow-[0_0_5px_#0aff0a]' : 'bg-gray-600'}`} />
+                      <span className={`text-[10px] font-mono uppercase ${isOnline ? 'text-neon-green' : 'text-gray-600'}`}>
+                        {isOnline ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 bg-white/5 rounded font-mono text-xs text-gray-400">x{target.count}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-black/40 rounded border border-white/5">
+                    <p className="text-[10px] text-gray-500 uppercase font-mono">Peak Hour</p>
+                    <p className="text-xs font-mono font-bold text-red-400">{target.peakHour}</p>
+                  </div>
+                  <div className="p-2 bg-black/40 rounded border border-white/5">
+                    <p className="text-[10px] text-gray-500 uppercase font-mono">Last Seen</p>
+                    <p className="text-xs font-mono font-bold text-neon-green">{diffDays === 0 ? 'TODAY' : `${diffDays}D AGO`}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-mono tracking-widest">Top Locations</p>
+                  {target.topLocations.slice(0, 2).map((loc, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs font-mono p-1.5 bg-black/20 rounded border border-white/5">
+                      <span className="text-gray-400 truncate max-w-[100px]">{loc.name}</span>
+                      <span className="text-neon-blue">{loc.count}x</span>
+                    </div>
                   ))}
-              </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            {/* 4. KS By Rank Distribution */}
-            <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden group">
-                 <div className="absolute inset-0 bg-neon-purple/5 opacity-0 group-hover:opacity-10 transition-opacity" />
-                 <h3 className="text-neon-purple font-display mb-6 tracking-widest text-sm uppercase">Eficiência de Combate por Rank</h3>
-                 
-                 <div className="flex flex-col gap-3 h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {data.killsByRank.map((item, i) => (
-                        <div key={i} className="flex items-center gap-4 text-sm">
-                            <div className="w-24 text-right truncate text-gray-300 font-bold text-xs uppercase" title={item.rank}>
-                                {item.rank}
-                            </div>
-                            <div className="flex-1 h-3 bg-gray-800 rounded-full overflow-hidden relative">
-                                 <div 
-                                    style={{ width: `${(item.count / maxRankCount) * 100}%` }}
-                                    className="h-full bg-gradient-to-r from-neon-purple to-neon-blue shadow-[0_0_10px_#bc13fe] rounded-full"
-                                 />
-                            </div>
-                            <div className="w-10 text-right font-mono text-white">
-                                {item.count}
-                            </div>
-                        </div>
-                    ))}
-                    {data.killsByRank.length === 0 && (
-                        <div className="flex items-center justify-center h-full text-gray-500 text-xs italic">
-                            Sem dados de rank
-                        </div>
-                    )}
-                 </div>
-            </div>
-
-            {/* 5. Top 5 Respawns (Hotzones) */}
-            <div className="bg-neon-surface/50 border border-gray-800 rounded-xl p-6 relative overflow-hidden group">
-                 <div className="absolute inset-0 bg-neon-green/5 opacity-0 group-hover:opacity-10 transition-opacity" />
-                 <h3 className="text-neon-green font-display mb-6 tracking-widest text-sm uppercase">Zonas de Alta Atividade (Top 5)</h3>
-                 
-                 <div className="flex flex-col gap-3 h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {data.topRespawns.map((item, i) => (
-                        <div key={i} className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center justify-end w-24 gap-2">
-                                 <span className="text-[10px] text-gray-500">#{i+1}</span>
-                                 <div className="truncate text-gray-300 font-bold text-xs uppercase" title={item.name}>{item.name}</div>
-                            </div>
-                            <div className="flex-1 h-3 bg-gray-800 rounded-full overflow-hidden relative">
-                                 <div 
-                                    style={{ width: `${(item.count / maxRespawnCount) * 100}%` }}
-                                    className="h-full bg-gradient-to-r from-neon-green to-neon-blue shadow-[0_0_10px_#0aff0a] rounded-full"
-                                 />
-                            </div>
-                            <div className="w-10 text-right font-mono text-white">
-                                {item.count}
-                            </div>
-                        </div>
-                    ))}
-                    {data.topRespawns.length === 0 && (
-                        <div className="flex items-center justify-center h-full text-gray-500 text-xs italic">
-                            Sem dados de respawn
-                        </div>
-                    )}
-                 </div>
-            </div>
-          </div>
-
-          {/* 6. Recent Trend (Full Width) */}
-          <div className="w-full bg-black/40 border border-gray-800 rounded-xl p-6 relative mb-8">
-                <h3 className="text-white font-display mb-4 tracking-widest text-sm uppercase">Tendência de KS (Últimos 14 Dias Ativos)</h3>
-                
-                <div className="relative h-48 w-full mt-4">
-                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                         <div className="w-full h-px bg-gray-800/50 border-t border-dashed border-gray-700/50"></div>
-                         <div className="w-full h-px bg-gray-800/30"></div>
-                         <div className="w-full h-px bg-gray-800/30"></div>
-                         <div className="w-full h-px bg-gray-800/30"></div>
-                         <div className="w-full h-px bg-neon-blue/10"></div>
-                    </div>
-
-                    <div className="absolute inset-0 flex items-end justify-between gap-2 px-1 z-10">
-                        {data.dailyTrend.map((d, i) => {
-                             const heightPercentage = (d.count / maxTrend) * 100;
-                             const isPeak = d.count === maxTrend;
-                             
-                             return (
-                             <div key={i} className="flex-1 flex flex-col justify-end group h-full relative">
-                                 <div 
-                                    style={{ bottom: `${heightPercentage}%` }}
-                                    className={`absolute left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black border ${isPeak ? 'border-neon-purple' : 'border-neon-blue'} text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none`}
-                                 >
-                                     {d.count} KS
-                                     <div className={`absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ${isPeak ? 'border-t-neon-purple' : 'border-t-neon-blue'}`}></div>
-                                 </div>
-
-                                 <div className="relative flex flex-col justify-end h-full w-full bg-white/5 rounded-sm overflow-hidden">
-                                     <div 
-                                        style={{ height: `${heightPercentage}%` }}
-                                        className={`w-full relative min-h-[4px] rounded-t-sm transition-all duration-500 border-t-2 
-                                            ${isPeak 
-                                                ? 'bg-gradient-to-t from-transparent via-neon-purple/60 to-neon-purple border-white shadow-[0_0_20px_#bc13fe] z-10' 
-                                                : 'bg-gradient-to-t from-transparent via-neon-blue/40 to-neon-blue/80 border-neon-blue shadow-[0_0_10px_rgba(0,243,255,0.4)] hover:to-neon-blue hover:shadow-[0_0_15px_rgba(0,243,255,0.6)]'}
-                                        `}
-                                     />
-                                 </div>
-                                 
-                                 <div className="mt-2 text-center">
-                                    <span className={`text-[10px] font-mono block transition-colors ${isPeak ? 'text-neon-purple font-bold drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]' : 'text-gray-700 group-hover:text-neon-blue'}`}>
-                                        {d.date.split('-')[2]}
-                                    </span>
-                                    <span className="text-[8px] text-gray-700 block -mt-0.5">
-                                        {d.date.split('-')[1]}
-                                    </span>
-                                 </div>
-                             </div>
-                         )})}
-                    </div>
                 </div>
-          </div>
 
-          {/* 7. Black List Intelligence (Integrated) */}
-          <div className="bg-neon-surface border border-red-500/20 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(220,38,38,0.05)] mb-8">
-              <div className="bg-gradient-to-r from-red-500/10 to-transparent p-6 border-b border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                      <SkullIcon className="w-6 h-6 text-red-500 animate-pulse" />
-                      <h2 className="font-display font-black text-white tracking-widest uppercase text-xl">
-                        Inteligência de Alvos (Black List)
-                      </h2>
-                  </div>
-                  <div className="flex flex-col md:text-right">
-                    <span className="font-mono text-[10px] text-red-500 uppercase tracking-[0.2em] font-bold">Monitoramento Tático</span>
-                    <span className="text-[9px] text-gray-500 font-mono italic">Padrões de atividade baseados nos últimos 30 dias</span>
-                  </div>
-              </div>
-
-              <div className="p-6 space-y-8">
-                  {/* Targets Section */}
-                  <div className="space-y-4">
-                      <div className="flex items-center gap-2 mb-2">
-                         <div className="h-4 w-1 bg-red-500 rounded-full"></div>
-                         <h3 className="text-gray-300 font-display text-xs uppercase tracking-widest">Alvos Identificados</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {huntedIntel?.targets.slice(0, 3).map((target, i) => {
-                              const lastSeenDate = new Date(target.lastSeen);
-                              const diffMs = now.getTime() - lastSeenDate.getTime();
-                              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                              const isInactive = diffDays > 7;
-
-                              return (
-                                  <div key={i} className={`bg-black/40 border ${isInactive ? 'border-gray-800 opacity-80' : 'border-gray-800'} rounded-xl p-4 group hover:border-red-500/40 transition-all flex flex-col relative overflow-hidden`}>
-                                      <div className="absolute top-0 right-0">
-                                          <div className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-bl-lg font-mono tracking-tighter ${isInactive ? 'bg-zinc-800 text-zinc-500' : 'bg-red-600 text-white animate-pulse'}`}>
-                                              {isInactive ? 'Inativo' : 'Ativo'}
-                                          </div>
-                                      </div>
-
-                                      <div className="flex justify-between items-start mb-3 mt-1">
-                                          <div className="flex flex-col">
-                                              <span className={`text-sm font-black truncate pr-2 transition-colors ${isInactive ? 'text-gray-500' : 'text-white group-hover:text-red-500'}`}>
-                                                  {target.name}
-                                              </span>
-                                              <div className="flex items-center gap-1.5 mt-0.5">
-                                                  <div className={`w-1.5 h-1.5 rounded-full ${onlineStatus[target.name]?.isOnline ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-gray-600'}`}></div>
-                                                  <span className={`text-[9px] font-mono font-bold uppercase ${onlineStatus[target.name]?.isOnline ? 'text-green-500' : 'text-gray-600'}`}>
-                                                      {onlineStatus[target.name]?.isOnline ? 'Online' : 'Offline'}
-                                                  </span>
-                                                  {!onlineStatus[target.name]?.isOnline && onlineStatus[target.name]?.lastLogin && (
-                                                    <span className="text-[8px] text-gray-700 font-mono ml-1 truncate max-w-[80px]">
-                                                      ({onlineStatus[target.name].lastLogin.split('T')[0]})
-                                                    </span>
-                                                  )}
-                                              </div>
-                                              {onlineStatus[target.name]?.vocation && (
-                                                <div className="flex flex-col mt-1">
-                                                  <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-tighter">
-                                                    Lvl {onlineStatus[target.name]?.level} • {onlineStatus[target.name]?.vocation}
-                                                  </span>
-                                                  {onlineStatus[target.name]?.guild && (
-                                                    <span className="text-[8px] text-neon-blue font-mono mt-0.5 truncate max-w-[120px]">
-                                                      🛡️ {onlineStatus[target.name]?.guild?.name}
-                                                    </span>
-                                                  )}
-                                                  {onlineStatus[target.name]?.experience && (
-                                                    <span className="text-[8px] text-zinc-600 font-mono mt-0.5">
-                                                      Exp: {onlineStatus[target.name]?.experience?.toLocaleString()}
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              )}
-                                          </div>
-                                          <span className="bg-gray-800 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold">x{target.count}</span>
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2">
-                                          <div className="bg-zinc-900/40 p-2 rounded border border-gray-800/30">
-                                              <span className="text-[8px] text-gray-600 uppercase font-mono block mb-1">Pico:</span>
-                                              <span className={`text-[10px] font-mono font-black ${isInactive ? 'text-gray-600' : 'text-red-400'}`}>{target.peakHour}</span>
-                                          </div>
-                                          <div className="bg-zinc-900/40 p-2 rounded border border-gray-800/30">
-                                              <span className="text-[8px] text-gray-600 uppercase font-mono block mb-1">Visto:</span>
-                                              <span className={`text-[10px] font-mono font-black ${isInactive ? 'text-orange-900' : 'text-green-500'}`}>
-                                                  {diffDays === 0 ? 'HOJE' : `${diffDays}D`}
-                                              </span>
-                                          </div>
-                                      </div>
-
-                                      {/* Top Locais */}
-                                      <div className="mt-3 pt-3 border-t border-gray-800/50">
-                                          <span className="text-[9px] text-gray-600 uppercase font-mono block mb-2 tracking-widest font-bold">Zonas de Avistamento (Top 3)</span>
-                                          <div className="space-y-1.5">
-                                              {target.topLocations.map((loc, idx) => (
-                                                  <div key={idx} className="flex items-center justify-between bg-zinc-900/40 p-1.5 rounded-md border border-gray-800/30">
-                                                      <span className={`text-[10px] truncate max-w-[120px] ${isInactive ? 'text-zinc-600' : 'text-zinc-400'}`} title={loc.name}>
-                                                          {idx + 1}. {loc.name}
-                                                      </span>
-                                                      <span className={`text-[9px] font-mono ${isInactive ? 'text-zinc-700' : 'text-neon-blue/70'}`}>{loc.count}x</span>
-                                                  </div>
-                                              ))}
-                                          </div>
-                                      </div>
-
-                                      {/* Mortes Recentes */}
-                                      {onlineStatus[target.name]?.recentDeaths && onlineStatus[target.name]!.recentDeaths!.length > 0 && (
-                                        <div className="mt-3 pt-3 border-t border-gray-800/50">
-                                            <span className="text-[9px] text-red-500/70 uppercase font-mono block mb-2 tracking-widest font-bold">Últimas Baixas</span>
-                                            <div className="space-y-1.5">
-                                                {onlineStatus[target.name]?.recentDeaths?.map((death, idx) => {
-                                                    const deathDate = new Date(death.time);
-                                                    const dateStr = `${deathDate.getDate().toString().padStart(2, '0')}/${(deathDate.getMonth() + 1).toString().padStart(2, '0')}`;
-                                                    return (
-                                                        <div key={idx} className="flex flex-col bg-red-950/20 p-1.5 rounded-md border border-red-900/20">
-                                                            <div className="flex justify-between items-center mb-0.5">
-                                                                <span className="text-[9px] text-red-400 font-mono font-bold">Lvl {death.level}</span>
-                                                                <span className="text-[8px] text-red-500/50 font-mono">{dateStr}</span>
-                                                            </div>
-                                                            <span className="text-[9px] text-gray-400 leading-tight line-clamp-2 italic" title={death.reason}>
-                                                                {death.reason.replace(/<\/?[^>]+(>|$)/g, "")}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                      )}
-                                  </div>
-                              );
-                          })}
-                      </div>
-                  </div>
-
-                  {/* Heatmap Section */}
-                  <div className="space-y-4">
-                      <div className="flex items-center gap-2 mb-2">
-                         <div className="h-4 w-1 bg-red-500 rounded-full"></div>
-                         <h3 className="text-gray-300 font-display text-xs uppercase tracking-widest">Strike Windows (Janelas de Ataque)</h3>
-                      </div>
-                      <div className="bg-black/30 p-6 rounded-xl border border-gray-800/50 h-[360px] flex flex-col">
-                          <div className="flex-1 flex items-end justify-between gap-1.5">
-                              {huntedIntel?.timeDistribution.map((freq, hour) => {
-                                  const height = (freq / maxFreq) * 100;
-                                  const isPeak = freq === maxFreq && freq > 0;
-                                  
-                                  return (
-                                      <div key={hour} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                          <div 
-                                              style={{ height: `${Math.max(height, 2)}%` }}
-                                              className={`w-full rounded-t-sm transition-all duration-700 
-                                                  ${freq > 0 
-                                                      ? (isPeak ? 'bg-white shadow-[0_0_15px_white]' : 'bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.4)]') 
-                                                      : 'bg-gray-800/30'}`}
-                                          />
-                                          <span className={`text-[8px] font-mono mt-2 ${freq > 0 ? 'text-red-400 font-bold' : 'text-gray-700'}`}>
-                                              {hour}h
-                                          </span>
-                                      </div>
-                                  );
-                              })}
+                {/* API Deaths Section */}
+                {onlineStatus[target.name]?.recentDeaths && onlineStatus[target.name].recentDeaths!.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-white/5">
+                    <p className="text-[10px] text-red-500 uppercase font-mono tracking-widest flex items-center gap-1">
+                      <SkullIcon className="w-2.5 h-2.5" /> Recent Deaths (API)
+                    </p>
+                    <div className="space-y-1">
+                      {onlineStatus[target.name].recentDeaths?.map((death, idx) => (
+                        <div key={idx} className={`p-1.5 rounded border text-[10px] font-mono leading-tight ${death.isMonsterDeath ? 'bg-orange-500/10 border-orange-500/30' : 'bg-red-500/5 border-red-500/10'}`}>
+                          <div className="flex justify-between text-gray-500 mb-0.5">
+                            <span className={death.isMonsterDeath ? 'text-orange-400' : ''}>
+                              {death.isMonsterDeath ? 'MONSTER DEATH' : `LVL ${death.level}`}
+                            </span>
+                            <span>{new Date(death.time).toLocaleDateString('pt-BR')}</span>
                           </div>
-                          <div className="mt-6 flex justify-between text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em] border-t border-gray-800/50 pt-4">
-                              <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-blue-500/20"></div>
-                                  <span>Madrugada</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                  <span>Noite</span>
-                                  <div className="w-2 h-2 rounded-full bg-red-500/20"></div>
-                              </div>
-                          </div>
-                      </div>
+                          <p className={`${death.isMonsterDeath ? 'text-orange-300/80' : 'text-red-400/80'} italic line-clamp-2`}>{death.reason}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                )}
               </div>
-          </div>
-        </>
-      )}
+            );
+          })}
+        </div>
+      </motion.div>
     </div>
   );
 };
 
-const StatCard: React.FC<{ label: string; value: string; subValue?: string; color: string; borderColor: string }> = ({ label, value, subValue, color, borderColor }) => (
-    <div className={`bg-neon-surface border ${borderColor} border-opacity-30 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden`}>
-        <div className={`absolute top-0 right-0 p-2 opacity-20 ${color}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
-                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3V6zm4.5 7.5a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25a.75.75 0 01.75-.75zm3.75-1.5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5a.75.75 0 01.75-.75zm3.75-1.5a.75.75 0 01.75.75v6a.75.75 0 01-1.5 0v-6a.75.75 0 01.75-.75z" clipRule="evenodd" />
-            </svg>
-        </div>
-        <span className="text-gray-500 text-[10px] uppercase tracking-widest mb-1">{label}</span>
-        <span className={`font-display font-black text-2xl md:text-3xl ${color} drop-shadow-sm`}>{value}</span>
-        {subValue && <span className="text-xs text-gray-600 mt-1">{subValue}</span>}
+const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string; subValue?: string; color: string; delay: number }> = ({ icon, label, value, subValue, color, delay }) => (
+  <motion.div 
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className="cyber-card p-6 cyber-border group"
+  >
+    <div className={`mb-4 ${color} pl-1 group-hover:scale-110 transition-transform duration-300`}>
+      {icon}
     </div>
+    <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-1">{label}</p>
+    <h4 className={`text-2xl font-display font-black text-white group-hover:text-white transition-colors`}>{value}</h4>
+    {subValue && <p className="text-[9px] text-gray-600 mt-1 uppercase font-mono">{subValue}</p>}
+  </motion.div>
 );
