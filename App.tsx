@@ -5,9 +5,10 @@ import { RankingList } from './components/RankingList';
 import { Overview } from './components/Overview';
 import { LegendsView } from './components/LegendsView'; 
 import { KSRegistrationForm } from './components/KSRegistrationForm';
+import { JoinKSTeamForm } from './components/JoinKSTeamForm';
 import { aggregateData, fetchAndParseData, getOverviewStats } from './services/csvService';
 import { RankedPlayer, RawDataRow, TimeFrame, OverviewData } from './types';
-import { RefreshCw, LayoutDashboard, Trophy, Shield, Terminal, Skull } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, Trophy, Shield, Terminal, Skull, Sword } from 'lucide-react';
 import { CrosshairIcon } from './components/NeonIcons';
 
 const App: React.FC = () => {
@@ -231,9 +232,18 @@ const App: React.FC = () => {
                         setActiveTab('DADOS_STATS');
                         setDadosSubTab('REGISTRO_KS');
                       }}
+                      onJoinTeam={() => {
+                        setActiveTab('DADOS_STATS');
+                        setDadosSubTab('JOIN_KS_TEAM');
+                      }}
                     />
-                  ) : (
+                  ) : dadosSubTab === 'REGISTRO_KS' ? (
                     <KSRegistrationForm overviewData={overviewData} onBack={() => {
+                      setActiveTab('DADOS_STATS');
+                      setDadosSubTab(TimeFrame.OVERVIEW);
+                    }} />
+                  ) : (
+                    <JoinKSTeamForm onBack={() => {
                       setActiveTab('DADOS_STATS');
                       setDadosSubTab(TimeFrame.OVERVIEW);
                     }} />

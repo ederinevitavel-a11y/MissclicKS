@@ -10,9 +10,10 @@ interface OverviewProps {
   data: OverviewData;
   onBackToIntelligence: () => void;
   onNewEntry: () => void;
+  onJoinTeam: () => void;
 }
 
-export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, onNewEntry }) => {
+export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, onNewEntry, onJoinTeam }) => {
   const maxWeekly = Math.max(...data.weeklyDistribution, 1);
   const totalWeeklyKS = data.weeklyDistribution.reduce((a, b) => a + b, 0);
   const maxRespawnCount = Math.max(...data.topRespawns.map(r => r.count), 1);
@@ -184,10 +185,10 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
 
               <button 
                 onClick={() => setShowSuggestForm(true)}
-                className="w-full group flex items-center gap-4 p-3 bg-neon-blue/5 border border-neon-blue/20 rounded-xl hover:border-neon-blue hover:bg-neon-blue/10 transition-all"
+                className="w-full group flex items-center gap-4 p-4 bg-neon-blue/5 border border-neon-blue/20 rounded-xl hover:border-neon-blue hover:bg-neon-blue/10 transition-all"
               >
-                <div className="w-8 h-8 rounded-lg bg-neon-blue/20 flex items-center justify-center text-neon-blue group-hover:scale-110 transition-transform">
-                  <Target className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-lg bg-neon-blue/20 flex items-center justify-center text-neon-blue group-hover:scale-110 transition-transform">
+                  <Target className="w-5 h-5" />
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-display font-bold uppercase tracking-wider">Sugerir Hunted</p>
@@ -195,16 +196,16 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
                 </div>
               </button>
 
-              <button className="w-full group flex items-center gap-4 p-4 bg-neon-purple/5 border border-neon-purple/20 rounded-xl transition-all opacity-70 cursor-not-allowed">
-                <div className="w-10 h-10 rounded-lg bg-neon-purple/20 flex items-center justify-center text-neon-purple">
+              <button 
+                onClick={onJoinTeam}
+                className="w-full group flex items-center gap-4 p-4 bg-neon-purple/5 border border-neon-purple/20 rounded-xl hover:border-neon-purple hover:bg-neon-purple/10 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-neon-purple/20 flex items-center justify-center text-neon-purple group-hover:scale-110 transition-transform">
                   <Users className="w-5 h-5" />
                 </div>
                 <div className="text-left">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-display font-bold uppercase tracking-wider">Time de KS</p>
-                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 font-mono">COMING SOON</span>
-                  </div>
-                  <p className="text-[9px] text-neon-purple/50 uppercase">Under Construction...</p>
+                  <p className="text-xs font-display font-bold uppercase tracking-wider">Time de KS</p>
+                  <p className="text-[9px] text-gray-500 uppercase">Join the Elite Squad</p>
                 </div>
               </button>
 
