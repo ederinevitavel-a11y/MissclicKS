@@ -194,6 +194,8 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
     // Hunted Intel
     const huntedTimeDist = new Array(24).fill(0);
     const huntedMap = new Map<string, { count: number; hours: Map<string, number>; locations: Map<string, number>; lastSeen: Date }>();
+    const huntedNemesisMap = new Map<string, Map<string, number>>();
+    const playerActivityMap = new Map<string, Set<string>>();
     
     let normalKills = 0;
     let heavyKills = 0;
@@ -218,6 +220,12 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         respawnMap.set(row.respawn, (respawnMap.get(row.respawn) || 0) + row.ks);
         playerTotalMap.set(row.player, (playerTotalMap.get(row.player) || 0) + row.ks);
 
+        // Activity Streak Logic
+        if (!playerActivityMap.has(row.player)) {
+            playerActivityMap.set(row.player, new Set());
+        }
+        playerActivityMap.get(row.player)!.add(dateKey);
+
         // Processamento de Hunted nos últimos 30 dias
         if (row.huntedName && row.huntedName !== '' && date >= thirtyDaysAgo) {
             const huntedData = huntedMap.get(row.huntedName) || { 
@@ -227,6 +235,13 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
               lastSeen: date
             };
             huntedData.count++;
+            
+            // Nemesis Logic
+            if (!huntedNemesisMap.has(row.huntedName)) {
+                huntedNemesisMap.set(row.huntedName, new Map());
+            }
+            const killers = huntedNemesisMap.get(row.huntedName)!;
+            killers.set(row.player, (killers.get(row.player) || 0) + row.ks);
             
             // Atualiza data do último avistamento
             if (date > huntedData.lastSeen) {
@@ -282,16 +297,66 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
               .sort((a, b) => b.count - a.count)
               .slice(0, 3);
 
+            // Find Nemesis
+            let nemesisList: { name: string; kills: number }[] = [];
+            const killers = huntedNemesisMap.get(name);
+            if (killers) {
+                nemesisList = Array.from(killers.entries())
+                    .map(([killer, count]) => ({ name: killer, kills: count }))
+                    .sort((a, b) => b.kills - a.kills)
+                    .slice(0, 3);
+            }
+
             return { 
                 name, 
                 count: data.count, 
                 peakHour, 
                 lastSeen: data.lastSeen.toISOString(),
-                topLocations 
+                topLocations,
+                nemesis: nemesisList
             };
         })
         .sort((a, b) => b.count - a.count)
         .slice(0, 15);
+
+    // Calculate Activity Streaks
+    const activityStreaks = Array.from(playerActivityMap.entries()).map(([player, datesSet]) => {
+        const dates = Array.from(datesSet).sort((a, b) => b.localeCompare(a)); // Descending
+        let streak = 0;
+        
+        // Check if active today or yesterday to start streak
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        let currentCheck = new Date(today);
+        
+        if (!datesSet.has(todayStr) && !datesSet.has(yesterdayStr)) {
+            return { name: player, streak: 0, lastActive: dates[0] || '' };
+        }
+
+        // Start checking from today if active, else yesterday
+        if (!datesSet.has(todayStr)) {
+            currentCheck = yesterday;
+        }
+
+        while (true) {
+            const dateStr = currentCheck.toISOString().split('T')[0];
+            if (datesSet.has(dateStr)) {
+                streak++;
+                currentCheck.setDate(currentCheck.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+
+        return { name: player, streak, lastActive: dates[0] || '' };
+    })
+    .filter(s => s.streak > 1)
+    .sort((a, b) => b.streak - a.streak)
+    .slice(0, 5);
 
     return {
         totalKills,
@@ -309,7 +374,8 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         huntedIntel: {
             timeDistribution: huntedTimeDist,
             targets
-        }
+        },
+        activityStreaks
     };
 };
 

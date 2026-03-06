@@ -48,8 +48,10 @@ export interface OverviewData {
       lastSeen: string; // ISO string da última vez visto
       topLocations: { name: string; count: number }[]; 
       isOnline?: boolean;
+      nemesis: { name: string; kills: number }[];
     }[]; 
   };
+  activityStreaks: { name: string; streak: number; lastActive: string }[];
 }
 
 export interface RankingData {

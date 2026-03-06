@@ -83,6 +83,43 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
 
       {/* Main Intelligence Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Activity Streaks - Full Width */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="lg:col-span-5 cyber-card p-6 cyber-border"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-sm uppercase tracking-widest flex items-center gap-2">
+              <Flame className="w-4 h-4 text-orange-500" />
+              Activity Streaks <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Sequência de Atividade)</span>
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {data.activityStreaks.map((streak, i) => (
+              <div key={i} className="flex flex-col p-3 bg-white/5 rounded border border-white/5 hover:border-orange-500/30 transition-all group relative overflow-hidden">
+                 <div className="absolute top-0 right-0 p-1 opacity-20 group-hover:opacity-100 transition-opacity">
+                   <Flame className="w-8 h-8 text-orange-500" />
+                 </div>
+                 <div className="flex items-center gap-2 mb-2 z-10">
+                   <span className="text-orange-500/50 font-mono font-bold text-xs">#{i+1}</span>
+                   <span className="text-sm font-black text-white group-hover:text-orange-400 transition-colors uppercase tracking-wider">{streak.name}</span>
+                 </div>
+                 <div className="z-10 mt-auto">
+                   <div className="text-orange-500 font-mono font-bold text-lg leading-none">
+                     {streak.streak} <span className="text-[10px] text-gray-500 font-normal">DAYS</span>
+                   </div>
+                   <div className="text-[8px] text-gray-600 uppercase tracking-wider mt-1">Last: {new Date(streak.lastActive).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
+                 </div>
+              </div>
+            ))}
+            {data.activityStreaks.length === 0 && (
+              <p className="col-span-full text-xs text-gray-500 font-mono text-center py-4">No active streaks recorded.</p>
+            )}
+          </div>
+        </motion.div>
+
         {/* Combat Logs */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -407,6 +444,28 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
                       <span className="text-neon-blue">{loc.count}x</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Nemesis Section */}
+                <div className="mt-3 pt-3 border-t border-white/5">
+                   <p className="text-[10px] text-gray-500 uppercase font-mono tracking-widest mb-1 flex items-center gap-1">
+                     <SkullIcon className="w-3 h-3 text-red-500" /> Nemesis
+                   </p>
+                   <div className="space-y-1">
+                     {target.nemesis.length > 0 ? (
+                       target.nemesis.map((nemesis, idx) => (
+                         <div key={idx} className="flex justify-between items-center bg-red-500/5 border border-red-500/10 rounded p-1.5 hover:bg-red-500/10 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-red-500/50 w-3">{idx + 1}.</span>
+                              <span className="text-xs font-bold text-red-400 truncate max-w-[100px]">{nemesis.name}</span>
+                            </div>
+                            <span className="text-xs font-mono text-red-500 font-bold">{nemesis.kills} KS</span>
+                         </div>
+                       ))
+                     ) : (
+                       <div className="text-[10px] text-gray-500 font-mono italic p-1">No data</div>
+                     )}
+                   </div>
                 </div>
 
                 {/* API Deaths Section */}

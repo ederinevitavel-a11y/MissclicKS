@@ -36,7 +36,7 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
 
   const handleSubmit = async () => {
     if (!formData.charName || !formData.huntedName || !formData.reason || files.every(f => !f)) {
-      setStatus({ type: 'error', message: 'Please fill in all required fields and attach at least one image.' });
+      setStatus({ type: 'error', message: 'Por favor, preencha todos os campos obrigatórios e anexe pelo menos uma imagem.' });
       return;
     }
 
@@ -85,7 +85,7 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
 
       setIsSubmitted(true);
     } catch (error: any) {
-      setStatus({ type: 'error', message: error.message || 'Error sending suggestion. Try again.' });
+      setStatus({ type: 'error', message: error.message || 'Erro ao enviar sugestão. Tente novamente.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -101,13 +101,13 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
         <div className="w-20 h-20 bg-neon-green/20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(10,255,10,0.3)]">
           <CheckCircle className="w-10 h-10 text-neon-green" />
         </div>
-        <h2 className="text-3xl font-display font-black text-white mb-4 uppercase tracking-tighter">Intelligence Transmitted</h2>
-        <p className="text-red-500 font-mono text-sm mb-12 uppercase tracking-widest">Target suggestion is under high command analysis.</p>
+        <h2 className="text-3xl font-display font-black text-white mb-4 uppercase tracking-tighter">Inteligência Transmitida</h2>
+        <p className="text-red-500 font-mono text-sm mb-12 uppercase tracking-widest">A sugestão de alvo está sob análise do alto comando.</p>
         <button 
           onClick={onBackToIntelligence}
           className="neon-button neon-button-blue w-full"
         >
-          Return to Intelligence
+          Retornar para Inteligência
         </button>
       </motion.div>
     );
@@ -120,14 +120,14 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
       className="max-w-3xl mx-auto"
     >
       <button onClick={onBack} className="flex items-center gap-2 text-gray-500 hover:text-neon-blue mb-8 transition-all group font-display text-[10px] uppercase tracking-widest">
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Voltar para o Painel
       </button>
 
       <div className="flex items-center gap-4 mb-2">
         <AlertTriangle className="w-8 h-8 text-red-500" />
-        <h2 className="text-3xl font-display font-black text-white uppercase tracking-tighter">Suggest Target</h2>
+        <h2 className="text-3xl font-display font-black text-white uppercase tracking-tighter">Sugerir Alvo</h2>
       </div>
-      <p className="text-gray-500 font-mono text-xs mb-8 uppercase tracking-widest">Submit details and description of the occurrence.</p>
+      <p className="text-gray-500 font-mono text-xs mb-8 uppercase tracking-widest">Envie detalhes e descrição da ocorrência.</p>
 
       <div className="cyber-card p-8 cyber-border space-y-8">
         {status.message && (
@@ -139,11 +139,11 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
-              <User className="w-3 h-3" /> Reporter ID
+              <User className="w-3 h-3" /> ID do Relator
             </label>
             <input
               type="text"
-              placeholder="Your character name"
+              placeholder="Nome do seu personagem"
               value={formData.charName}
               onChange={(e) => setFormData({...formData, charName: e.target.value})}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all"
@@ -151,11 +151,11 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
           </div>
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
-              <Target className="w-3 h-3" /> Target Designation
+              <Target className="w-3 h-3" /> Designação do Alvo
             </label>
             <input
               type="text"
-              placeholder="Target character name"
+              placeholder="Nome do personagem alvo"
               value={formData.huntedName}
               onChange={(e) => setFormData({...formData, huntedName: e.target.value})}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all"
@@ -165,10 +165,10 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
-            <FileText className="w-3 h-3" /> Reason Summary
+            <FileText className="w-3 h-3" /> Resumo do Motivo
           </label>
           <textarea
-            placeholder="Describe hostile actions of the target..."
+            placeholder="Descreva as ações hostis do alvo..."
             value={formData.reason}
             onChange={(e) => setFormData({...formData, reason: e.target.value})}
             rows={5}
@@ -178,14 +178,14 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
 
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-[10px] font-display uppercase text-gray-500 tracking-widest">
-            <Upload className="w-3 h-3" /> Visual Evidence (Max 3)
+            <Upload className="w-3 h-3" /> Evidência Visual (Máx 3)
           </label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[0, 1, 2].map((index) => (
               <div key={index} className="cyber-card p-4 bg-white/5 border-dashed border-white/10 hover:border-neon-purple transition-all group">
                 <input 
                   type="text" 
-                  placeholder={`Image ID ${index + 1}`} 
+                  placeholder={`ID da Imagem ${index + 1}`} 
                   value={printNames[index]}
                   onChange={(e) => handleNameChange(index, e.target.value)}
                   className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] font-display uppercase tracking-widest text-white mb-3 outline-none focus:border-neon-purple"
@@ -193,7 +193,7 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(index, e)} className="hidden" id={`file-${index}`} />
                 <label htmlFor={`file-${index}`} className="flex items-center justify-center gap-2 cursor-pointer py-2 bg-white/5 rounded-lg text-[10px] font-display uppercase text-neon-purple hover:bg-neon-purple hover:text-black transition-all">
                   <Upload className="w-3 h-3" />
-                  {files[index] ? files[index]?.name : 'Upload'}
+                  {files[index] ? files[index]?.name : 'Enviar'}
                 </label>
               </div>
             ))}
@@ -207,11 +207,11 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
             className="mt-6 px-6 py-2.5 bg-neon-purple/10 border border-neon-purple text-neon-purple font-display font-bold uppercase tracking-widest rounded-lg hover:bg-neon-purple hover:text-black hover:shadow-[0_0_20px_rgba(188,19,254,0.5)] transition-all duration-300 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             {isSubmitting ? (
-              <span className="animate-pulse">Sending...</span>
+              <span className="animate-pulse">Enviando...</span>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                Submit Suggestion
+                Enviar Sugestão
               </>
             )}
           </button>

@@ -54,7 +54,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.some(f => !f) || printNames.some(n => !n.trim())) {
-      setStatus({ type: 'error', message: 'Please attach and name screenshots.' });
+      setStatus({ type: 'error', message: 'Por favor, anexe e nomeie as screenshots.' });
       return;
     }
     setIsSubmitting(true);
@@ -100,11 +100,11 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         body: formDataToSend,
       });
 
-      setStatus({ type: 'success', message: 'Entry and screenshots sent successfully!' });
+      setStatus({ type: 'success', message: 'Entrada e screenshots enviadas com sucesso!' });
       setShowConfirmation(true);
       setIsSubmitting(false);
     } catch (error: any) {
-      setStatus({ type: 'error', message: error.message || 'Error sending. Try again.' });
+      setStatus({ type: 'error', message: error.message || 'Erro ao enviar. Tente novamente.' });
       setIsSubmitting(false);
     }
   };
@@ -119,8 +119,8 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         <div className="w-16 h-16 bg-neon-green/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(10,255,10,0.3)]">
           <CheckCircle className="w-8 h-8 text-neon-green" />
         </div>
-        <h3 className="text-xl font-display font-black text-white mb-2 uppercase tracking-tighter">Mission Confirmed</h3>
-        <p className="text-gray-500 text-xs font-mono mb-8 uppercase tracking-widest">Entry registered in central database.</p>
+        <h3 className="text-xl font-display font-black text-white mb-2 uppercase tracking-tighter">Missão Confirmada</h3>
+        <p className="text-gray-500 text-xs font-mono mb-8 uppercase tracking-widest">Entrada registrada no banco de dados central.</p>
         
         <button
           onClick={() => {
@@ -132,7 +132,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           }}
           className="neon-button neon-button-blue w-full"
         >
-          New Entry
+          Nova Entrada
         </button>
       </motion.div>
     );
@@ -145,7 +145,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           onClick={onBack}
           className="flex items-center gap-2 text-xs font-display uppercase tracking-widest text-gray-500 hover:text-white transition-colors mb-4"
         >
-          <span className="text-neon-blue">←</span> Back to Intelligence
+          <span className="text-neon-blue">←</span> Voltar para Inteligência
         </button>
       )}
       <motion.div 
@@ -155,27 +155,27 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
       >
         <div className="flex items-center gap-3 mb-8">
           <div className="w-1 h-8 bg-neon-blue rounded-full" />
-          <h3 className="text-xl font-display font-black text-white uppercase tracking-tighter">KS Registration</h3>
+          <h3 className="text-xl font-display font-black text-white uppercase tracking-tighter">Registro de KS</h3>
         </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputGroup 
             icon={<Mail className="w-4 h-4" />}
-            label="Email Address"
+            label="Endereço de Email"
             name="email"
             type="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="operator@system.com"
+            placeholder="operador@sistema.com"
           />
           <InputGroup 
             icon={<User className="w-4 h-4" />}
-            label="Character Name"
+            label="Nome do Personagem"
             name="charName"
             value={formData.charName}
             onChange={handleChange}
-            placeholder="Enter combatant name"
+            placeholder="Digite o nome do combatente"
           />
         </div>
 
@@ -191,7 +191,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
               onChange={handleChange}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all appearance-none cursor-pointer"
             >
-              <option value="" disabled className="bg-neon-dark">Select Rank</option>
+              <option value="" disabled className="bg-neon-dark">Selecionar Rank</option>
               {['Leader', 'Challenger', 'Guardian', 'Loyal', 'Member', 'Begginer', 'Prata'].map(rank => (
                 <option key={rank} value={rank} className="bg-neon-dark">{rank}</option>
               ))}
@@ -199,11 +199,11 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           </div>
           <InputGroup 
             icon={<Target className="w-4 h-4" />}
-            label="Target Name"
+            label="Nome do Alvo"
             name="huntedName"
             value={formData.huntedName}
             onChange={handleChange}
-            placeholder="Identify target"
+            placeholder="Identificar alvo"
             list="hunted-suggestions"
           />
           <datalist id="hunted-suggestions">
@@ -223,7 +223,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
               onChange={handleChange}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all appearance-none cursor-pointer"
             >
-              <option value="" disabled className="bg-neon-dark">Select Respawn</option>
+              <option value="" disabled className="bg-neon-dark">Selecionar Respawn</option>
               {[
                 "Asura Espelho", "Catedral", "Caminho Ferumbras", "Carnivors", "Cobra Castelo",
                 "Crypt Warden", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Goannas",
@@ -239,7 +239,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           </div>
           <InputGroup 
             icon={<Key className="w-4 h-4" />}
-            label="Access Code"
+            label="Código de Acesso"
             name="idCode"
             value={formData.idCode}
             onChange={handleChange}
@@ -259,14 +259,14 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
 
         <div className="space-y-4 pt-4 border-t border-white/5">
           <p className="text-[10px] font-display uppercase text-gray-500 tracking-widest flex items-center gap-2">
-            <Upload className="w-3 h-3" /> Visual Evidence (Screenshots)
+            <Upload className="w-3 h-3" /> Evidência Visual (Screenshots)
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[0, 1].map((index) => (
               <div key={index} className="cyber-card p-4 bg-white/5 border-dashed border-white/10 hover:border-neon-blue transition-all group">
                 <input 
                   type="text" 
-                  placeholder={`Image ID ${index + 1}`} 
+                  placeholder={`ID da Imagem ${index + 1}`} 
                   value={printNames[index]}
                   onChange={(e) => handleNameChange(index, e.target.value)}
                   className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] font-display uppercase tracking-widest text-white mb-3 outline-none focus:border-neon-blue"
@@ -274,7 +274,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(index, e)} className="hidden" id={`file-${index}`} />
                 <label htmlFor={`file-${index}`} className="flex items-center justify-center gap-2 cursor-pointer py-2 bg-white/5 rounded-lg text-[10px] font-display uppercase text-neon-blue hover:bg-neon-blue hover:text-black transition-all">
                   <Upload className="w-3 h-3" />
-                  {files[index] ? files[index]?.name : 'Upload'}
+                  {files[index] ? files[index]?.name : 'Enviar'}
                 </label>
               </div>
             ))}
@@ -288,11 +288,11 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             className="mt-6 px-4 py-2 bg-neon-blue/10 border border-neon-blue text-neon-blue font-display font-bold uppercase tracking-widest rounded-lg hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_rgba(0,243,255,0.5)] transition-all duration-300 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed text-xs"
           >
             {isSubmitting ? (
-              <span className="animate-pulse">Processing...</span>
+              <span className="animate-pulse">Processando...</span>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                Confirm KS
+                Confirmar KS
               </>
             )}
           </button>
