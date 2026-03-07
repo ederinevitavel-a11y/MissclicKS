@@ -4,7 +4,7 @@ import { OverviewData } from '../types';
 import { SkullIcon } from './NeonIcons';
 import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
 import { SuggestHuntedForm } from './SuggestHuntedForm';
-import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users } from 'lucide-react';
+import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan } from 'lucide-react';
 
 interface OverviewProps {
   data: OverviewData;
@@ -242,7 +242,9 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
             </h3>
             <div className="text-right">
               <p className="text-xl font-mono font-bold text-neon-green">{totalWeeklyKS}</p>
-              <p className="text-[8px] text-gray-500 uppercase tracking-widest">Total Weekly KS</p>
+              <p className="text-[8px] text-gray-500 uppercase tracking-widest flex items-center justify-end gap-1">
+                <BarChart3 className="w-3 h-3" /> Total Weekly KS
+              </p>
             </div>
           </div>
           <div className="flex items-end justify-between h-40 gap-2 px-2">
@@ -317,7 +319,7 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
       >
         <div className="flex items-center justify-between mb-8 h-6">
           <h3 className="font-display text-sm uppercase tracking-widest flex items-center gap-2">
-            <span className="w-1 h-4 bg-red-500 rounded-full" />
+            <Clock className="w-4 h-4 text-red-500" />
             STRIKE WINDOWS <span className="text-[10px] text-gray-500 normal-case tracking-normal">(Janelas de Ataque)</span>
           </h3>
         </div>
@@ -396,7 +398,9 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
             </h3>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-xs font-mono text-red-500 uppercase tracking-widest">Tactical Monitoring</p>
+            <p className="text-xs font-mono text-red-500 uppercase tracking-widest flex items-center justify-end gap-1">
+              <Scan className="w-3 h-3" /> Tactical Monitoring
+            </p>
             <p className="text-[10px] text-gray-500 uppercase">Last 30 Days Activity</p>
           </div>
         </div>
@@ -428,17 +432,23 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 bg-black/40 rounded border border-white/5">
-                    <p className="text-[10px] text-gray-500 uppercase font-mono">Peak Hour</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-mono flex items-center gap-1 mb-1">
+                      <Clock className="w-3 h-3" /> Peak Hour
+                    </p>
                     <p className="text-xs font-mono font-bold text-red-400">{target.peakHour}</p>
                   </div>
                   <div className="p-2 bg-black/40 rounded border border-white/5">
-                    <p className="text-[10px] text-gray-500 uppercase font-mono">Last Seen</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-mono flex items-center gap-1 mb-1">
+                      <Eye className="w-3 h-3" /> Last Seen
+                    </p>
                     <p className="text-xs font-mono font-bold text-neon-green">{diffDays === 0 ? 'TODAY' : `${diffDays}D AGO`}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-mono tracking-widest">Top Locations</p>
+                  <p className="text-[10px] text-gray-500 uppercase font-mono tracking-widest flex items-center gap-1">
+                    <MapPinned className="w-3 h-3" /> Top Locations
+                  </p>
                   {target.topLocations.slice(0, 2).map((loc, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs font-mono p-1.5 bg-black/20 rounded border border-white/5">
                       <span className="text-gray-400 truncate max-w-[100px]">{loc.name}</span>

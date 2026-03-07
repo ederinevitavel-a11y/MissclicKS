@@ -192,7 +192,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all appearance-none cursor-pointer"
             >
               <option value="" disabled className="bg-neon-dark">Selecionar Rank</option>
-              {['Leader', 'Challenger', 'Guardian', 'Loyal', 'Member', 'Begginer', 'Prata'].map(rank => (
+              {['Leader', 'Challenger', 'Guardian', 'Loyal', 'Member', 'Begginer', 'Newcommer'].map(rank => (
                 <option key={rank} value={rank} className="bg-neon-dark">{rank}</option>
               ))}
             </select>
