@@ -85,9 +85,10 @@ const parseCSV = (csvText: string): RawDataRow[] => {
   const idxHunted = headers.findIndex(h => h.includes('hunted') || h.includes('vítima') || h.includes('alvo'));
   const idxRespawn = headers.findIndex(h => h.includes('respawn') || h.includes('respaw') || h.includes('local') || h.includes('área'));
   const idxStatus = headers.findIndex(h => h.includes('status') || h.includes('situação'));
+  const idxWeight = headers.findIndex(h => h.includes('peso') || h.includes('weight'));
   
   console.log("Cabeçalhos detectados:", headers);
-  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus });
+  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus, idxWeight });
 
   const data: RawDataRow[] = [];
 
@@ -121,11 +122,24 @@ const parseCSV = (csvText: string): RawDataRow[] => {
 
     let dateObj = parseFlexibleDate(dateStr) || new Date();
 
-    // Lógica de pontos (Peso 02)
+    // Lógica de pontos (Pesos de KS)
     let points = 1;
-    const rowText = lines[i].toLowerCase();
-    if (rowText.includes('peso 02') || rowText.includes('peso 2')) {
-        points = 2;
+    
+    // Primeiro tenta ler da coluna de Peso se detectada
+    if (idxWeight !== -1 && cols[idxWeight]) {
+        const weightStr = cols[idxWeight].replace(',', '.').trim();
+        const weightVal = parseFloat(weightStr);
+        if (!isNaN(weightVal)) {
+            points = weightVal;
+        }
+    } else {
+        // Fallback para busca no texto da linha
+        const rowText = lines[i].toLowerCase();
+        if (rowText.includes('peso 0.5') || rowText.includes('peso 0,5')) {
+            points = 0.5;
+        } else if (rowText.includes('peso 02') || rowText.includes('peso 2')) {
+            points = 2;
+        }
     }
 
     data.push({

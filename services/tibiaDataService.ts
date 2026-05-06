@@ -51,22 +51,45 @@ export async function fetchCharacterStatus(name: string): Promise<CharacterStatu
     if (!response.ok) {
       throw new Error('Failed to fetch character data');
     }
-    const data: TibiaDataCharacterResponse = await response.json();
+    const data: any = await response.json();
     const char = data.character.character;
     const deaths = data.character.deaths;
+    const otherCharacters = data.character.other_characters;
+    
+    let isOnline = false;
+
+    if (otherCharacters && Array.isArray(otherCharacters)) {
+      const charInList = otherCharacters.find((c: any) => c.name === char.name);
+      if (charInList) {
+        isOnline = charInList.status === 'online';
+      }
+    } else if (char.world) {
+      // Character is hidden, check the world's online list
+      try {
+        const worldResponse = await fetch(`https://api.tibiadata.com/v4/world/${encodeURIComponent(char.world)}`);
+        if (worldResponse.ok) {
+          const worldData: any = await worldResponse.json();
+          if (worldData.world && Array.isArray(worldData.world.online_players)) {
+            isOnline = worldData.world.online_players.some((p: any) => p.name === char.name);
+          }
+        }
+      } catch (worldError) {
+        console.error(`Error fetching world data for ${char.world}:`, worldError);
+      }
+    }
     
     return {
-      isOnline: char.status === 'online',
+      isOnline,
       lastLogin: char.last_login,
       vocation: char.vocation,
       level: char.level,
       experience: char.experience,
       guild: char.guild,
-      recentDeaths: deaths?.slice(0, 3).map(d => ({
+      recentDeaths: deaths?.slice(0, 3).map((d: any) => ({
         time: d.time,
         level: d.level,
         reason: d.reason,
-        isMonsterDeath: d.killers.every(k => !k.player)
+        isMonsterDeath: d.killers.every((k: any) => !k.player)
       }))
     };
   } catch (error) {
