@@ -11,9 +11,10 @@ interface OverviewProps {
   onBackToIntelligence: () => void;
   onNewEntry: () => void;
   onJoinTeam: () => void;
+  onOpenBlackList: () => void;
 }
 
-export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, onNewEntry, onJoinTeam }) => {
+export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, onNewEntry, onJoinTeam, onOpenBlackList }) => {
   const maxWeekly = Math.max(...data.weeklyDistribution, 1);
   const totalWeeklyKS = data.weeklyDistribution.reduce((a, b) => a + b, 0);
   const maxRespawnCount = Math.max(...data.topRespawns.map(r => r.count), 1);
@@ -209,16 +210,16 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
                 </div>
               </button>
 
-              <button className="w-full group flex items-center gap-4 p-4 bg-red-500/5 border border-red-500/20 rounded-xl transition-all opacity-70 cursor-not-allowed">
-                <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500">
+              <button 
+                onClick={onOpenBlackList}
+                className="w-full group flex items-center gap-4 p-4 bg-red-500/5 border border-red-500/20 rounded-xl hover:border-red-500 hover:bg-red-500/10 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(239,68,68,0.2)]">
                   <SkullIcon className="w-5 h-5" />
                 </div>
                 <div className="text-left">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-display font-bold uppercase tracking-wider">Black List</p>
-                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 font-mono">COMING SOON</span>
-                  </div>
-                  <p className="text-[9px] text-red-500/50 uppercase">Under Construction...</p>
+                  <p className="text-xs font-display font-bold uppercase tracking-wider">Black List</p>
+                  <p className="text-[9px] text-red-500/70 uppercase">Tactical Mitigation</p>
                 </div>
               </button>
             </div>

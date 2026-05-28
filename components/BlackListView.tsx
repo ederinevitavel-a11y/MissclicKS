@@ -1,178 +1,176 @@
-
-import React from 'react';
-import { RawDataRow, OverviewData } from '../types';
-import { SkullIcon, AlertIcon } from './NeonIcons';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { ShieldAlert, User, Clock, Flame, Zap, ArrowLeft, Search } from 'lucide-react';
+import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
 
 interface BlackListViewProps {
-  rawData: RawDataRow[];
-  overviewData: OverviewData | null;
+  onBack: () => void;
 }
 
-export const BlackListView: React.FC<BlackListViewProps> = ({ rawData, overviewData }) => {
-  const huntedIntel = overviewData?.huntedIntel;
-  const maxFreq = huntedIntel ? Math.max(...huntedIntel.timeDistribution, 1) : 1;
+const BLACKLIST_NAMES = [
+  "Denari Dakis",
+  "Vy Canis Majoris",
+  "Huitzilopotzli",
+  "Dede Granger",
+  "Kip Fraga Feru",
+  "Laddyziinha",
+  "Main Warwick",
+  "Isabel",
+  "Capistrano",
+  "Emilly Candy",
+  "Bonjandom Vopel",
+  "Ra fhael",
+  "Hatred Belial",
+  "Vann Insane",
+  "Leandrin Predator",
+  "Moianof",
+  "Capistrano Implacavel",
+  "bomba baguncinha"
+];
 
-  // Divisões do dia para tornar o gráfico intuitivo
-  const getTimePeriod = (hour: number) => {
-    if (hour >= 0 && hour < 6) return 'Madrugada';
-    if (hour >= 6 && hour < 12) return 'Manhã';
-    if (hour >= 12 && hour < 18) return 'Tarde';
-    return 'Noite';
-  };
+export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
+  const [statuses, setStatuses] = useState<Record<string, CharacterStatus>>({});
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const now = new Date();
+  useEffect(() => {
+    const fetchAllStatuses = async () => {
+      setLoading(true);
+      const results = await Promise.all(
+        BLACKLIST_NAMES.map(async (name) => ({
+          name,
+          status: await fetchCharacterStatus(name)
+        }))
+      );
+      const newStatuses: Record<string, CharacterStatus> = {};
+      results.forEach(r => { newStatuses[r.name] = r.status; });
+      setStatuses(newStatuses);
+      setLoading(false);
+    };
+
+    fetchAllStatuses();
+    const interval = setInterval(fetchAllStatuses, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredNames = BLACKLIST_NAMES.filter(name => 
+    name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="w-full max-w-5xl mx-auto animate-fade-in pb-20 px-4 space-y-8">
-      
-      {/* SEÇÃO DE INTELIGÊNCIA: PADRÕES DE HUNTEDS (Últimos 30 Dias) */}
-      <div className="bg-neon-surface border border-neon-blue/20 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,243,255,0.05)]">
-          <div className="bg-gradient-to-r from-neon-blue/10 to-transparent p-6 border-b border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 bg-neon-blue rounded-full animate-pulse shadow-[0_0_10px_#00f3ff]"></div>
-                  <h2 className="font-display font-black text-white tracking-widest uppercase text-xl md:text-2xl">
-                    Inteligência de Alvos
-                  </h2>
-              </div>
-              <div className="flex flex-col md:text-right">
-                <span className="font-mono text-[10px] text-neon-blue uppercase tracking-[0.2em] font-bold">Relatório de Atividade Recente</span>
-                <span className="text-[9px] text-gray-500 font-mono italic">Baseado nos últimos 30 dias de avistamentos</span>
-              </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 text-xs font-display uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-3 h-3 text-neon-blue" /> Voltar para o Painel
+        </button>
+        
+        <div className="relative group w-full md:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-blue transition-colors" />
+          <input 
+            type="text"
+            placeholder="Filtrar Black List..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs font-mono text-white outline-none focus:border-neon-blue transition-all"
+          />
+        </div>
+      </div>
 
-          <div className="p-6 space-y-12">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="cyber-card p-8 cyber-border border-red-500/30 overflow-hidden relative"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 blur-[100px] rounded-full -mr-32 -mt-32" />
+        
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 bg-red-500/20 border border-red-500/40 rounded-xl flex items-center justify-center text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+            <ShieldAlert className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-display font-black text-white uppercase tracking-tighter">Banned Operators</h3>
+            <p className="text-[10px] font-mono text-red-500/70 uppercase tracking-[0.2em]">Black List // Permanent Mitigation Targets</p>
+          </div>
+        </div>
+
+        {loading && Object.keys(statuses).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-12 h-12 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
+            <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Scanning Network Status...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredNames.map((name, i) => {
+              const status = statuses[name];
+              const isOnline = status?.isOnline;
               
-              {/* Parte 1: Lista de Alvos, Horários e Status de Evasão */}
-              <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                     <div className="h-4 w-1 bg-neon-blue rounded-full"></div>
-                     <h3 className="text-gray-300 font-display text-xs uppercase tracking-widest">Alvos Identificados: Perfil Tático</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {huntedIntel?.targets.map((target, i) => {
-                          const lastSeenDate = new Date(target.lastSeen);
-                          const diffMs = now.getTime() - lastSeenDate.getTime();
-                          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                          const isInactive = diffDays > 7;
-
-                          return (
-                              <div key={i} className={`bg-black/40 border ${isInactive ? 'border-gray-800 opacity-80' : 'border-gray-800'} rounded-xl p-5 group hover:border-neon-blue/40 transition-all flex flex-col relative overflow-hidden`}>
-                                  
-                                  {/* Status de Evasão Badge */}
-                                  <div className="absolute top-0 right-0">
-                                      <div className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-bl-lg font-mono tracking-tighter shadow-lg ${isInactive ? 'bg-zinc-800 text-zinc-500' : 'bg-neon-blue text-black animate-pulse'}`}>
-                                          {isInactive ? 'Inativo / Oculto' : 'Ativo no Radar'}
-                                      </div>
-                                  </div>
-
-                                  <div className="flex justify-between items-start mb-4 mt-2">
-                                      <span className={`text-base font-black truncate pr-2 transition-colors ${isInactive ? 'text-gray-500' : 'text-white group-hover:text-neon-blue'}`}>
-                                          {target.name}
-                                      </span>
-                                      <span className="bg-gray-800 text-gray-400 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">x{target.count}</span>
-                                  </div>
-                                  
-                                  <div className="space-y-3 flex-1">
-                                      {/* Horário de Pico */}
-                                      <div className="flex items-center justify-between py-2 border-b border-gray-800/50">
-                                          <span className="text-[10px] text-gray-500 uppercase font-mono tracking-tighter font-bold">Horário Usual:</span>
-                                          <span className={`text-xs font-mono font-black ${isInactive ? 'text-gray-600' : 'text-neon-blue'}`}>{target.peakHour}</span>
-                                      </div>
-
-                                      {/* Status Temporal */}
-                                      <div className="flex items-center justify-between py-2 border-b border-gray-800/50">
-                                          <span className="text-[10px] text-gray-500 uppercase font-mono tracking-tighter font-bold">Último Sinal:</span>
-                                          <span className={`text-[10px] font-mono font-bold ${isInactive ? 'text-orange-900' : 'text-neon-green/80'}`}>
-                                              {diffDays === 0 ? 'HOJE' : `${diffDays} DIA${diffDays > 1 ? 'S' : ''} ATRÁS`}
-                                          </span>
-                                      </div>
-
-                                      {/* Top Locais */}
-                                      <div className="pt-1">
-                                          <span className="text-[9px] text-gray-600 uppercase font-mono block mb-2 tracking-widest font-bold">Zonas de Avistamento (Top 3)</span>
-                                          <div className="space-y-1.5">
-                                              {target.topLocations.map((loc, idx) => (
-                                                  <div key={idx} className="flex items-center justify-between bg-zinc-900/40 p-1.5 rounded-md border border-gray-800/30">
-                                                      <span className={`text-[10px] truncate max-w-[120px] ${isInactive ? 'text-zinc-600' : 'text-zinc-400'}`} title={loc.name}>
-                                                          {idx + 1}. {loc.name}
-                                                      </span>
-                                                      <span className={`text-[9px] font-mono ${isInactive ? 'text-zinc-700' : 'text-neon-blue/70'}`}>{loc.count}x</span>
-                                                  </div>
-                                              ))}
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                      {(!huntedIntel || huntedIntel.targets.length === 0) && (
-                          <div className="col-span-full py-12 text-center opacity-30 border border-dashed border-gray-800 rounded-xl">
-                              <p className="font-mono text-xs">Nenhum alvo detectado no radar recentemente.</p>
-                          </div>
-                      )}
-                  </div>
-              </div>
-
-              {/* Parte 2: Gráfico de Horários (Strike Windows) */}
-              <div className="space-y-6">
-                  <div className="flex items-center gap-2 mb-2">
-                     <div className="h-4 w-1 bg-neon-blue rounded-full"></div>
-                     <h3 className="text-gray-300 font-display text-xs uppercase tracking-widest">Mapa de Calor: Intensidade por Horário</h3>
-                  </div>
+              const isMaxThreat = ["Capistrano Implacavel", "Leandrin Predator", "Capistrano"].includes(name);
+              
+              return (
+                <motion.div 
+                  key={name}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.03 }}
+                  className={`bg-black/40 border rounded-xl p-4 transition-all group relative overflow-hidden ${isMaxThreat ? 'border-red-500/20 hover:border-red-500/40' : 'border-white/5 hover:border-orange-500/40'}`}
+                >
+                  {isOnline && (
+                    <div className={`absolute top-0 right-0 w-16 h-16 blur-xl rounded-full -mr-8 -mt-8 ${isMaxThreat ? 'bg-red-500/10' : 'bg-neon-green/5'}`} />
+                  )}
                   
-                  <div className="bg-black/30 p-8 rounded-2xl border border-gray-800/50 relative">
-                    <div className="absolute inset-x-8 top-8 bottom-20 flex flex-col justify-between pointer-events-none opacity-5">
-                        <div className="w-full h-px bg-white"></div>
-                        <div className="w-full h-px bg-white"></div>
-                        <div className="w-full h-px bg-white"></div>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-colors ${isOnline ? 'bg-neon-green/10 border-neon-green/30 text-neon-green shadow-[0_0_10px_rgba(10,255,10,0.2)]' : 'bg-white/5 border-white/10 text-gray-600'}`}>
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className={`font-bold text-sm tracking-tight transition-colors uppercase ${isMaxThreat ? 'group-hover:text-red-500' : 'group-hover:text-orange-500'}`}>{name}</h4>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-1 h-1 rounded-full ${isOnline ? 'bg-neon-green animate-pulse' : 'bg-gray-600'}`} />
+                          <span className={`text-[8px] font-mono uppercase ${isOnline ? 'text-neon-green' : 'text-gray-600'}`}>
+                            {isOnline ? 'Critical Awareness' : 'Deep Sleep'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="relative h-40 flex items-end justify-between gap-1.5 md:gap-3 z-10">
-                        {huntedIntel?.timeDistribution.map((freq, hour) => {
-                            const height = (freq / maxFreq) * 100;
-                            const isPeak = freq === maxFreq && freq > 0;
-                            
-                            return (
-                                <div key={hour} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-neon-blue text-black text-[10px] font-bold px-2 py-1 rounded-md z-20 pointer-events-none whitespace-nowrap shadow-[0_0_15px_rgba(0,243,255,0.4)]">
-                                        {freq} Incidências
-                                    </div>
-
-                                    <div 
-                                        style={{ height: `${Math.max(height, 2)}%` }}
-                                        className={`w-full rounded-t-md transition-all duration-700 
-                                            ${freq > 0 
-                                                ? (isPeak ? 'bg-white shadow-[0_0_20px_white]' : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.5)]') 
-                                                : 'bg-gray-800 opacity-20'}`}
-                                    />
-                                    
-                                    <div className="mt-4 flex flex-col items-center">
-                                        <span className={`text-[9px] font-mono transition-colors ${freq > 0 ? 'text-neon-blue' : 'text-gray-700'}`}>
-                                            {hour.toString().padStart(2, '0')}h
-                                        </span>
-                                        {hour % 6 === 0 && (
-                                            <span className="absolute -bottom-6 text-[8px] uppercase tracking-tighter text-gray-600 font-bold whitespace-nowrap">
-                                                {getTimePeriod(hour)}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="h-10"></div>
                   </div>
-              </div>
 
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    <div className="p-2 bg-white/5 rounded border border-white/5 text-center">
+                      <p className="text-[8px] text-gray-500 uppercase mb-1">Last Seen</p>
+                      <p className="text-[10px] font-mono font-bold text-gray-300">
+                        {status?.lastLogin ? new Date(status.lastLogin).toLocaleDateString('pt-BR') : '??/??'}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-white/5 rounded border border-white/5 text-center">
+                      <p className="text-[8px] text-gray-500 uppercase mb-1">Threat Lvl</p>
+                      <p className={`text-[10px] font-mono font-bold ${isMaxThreat ? 'text-red-500' : 'text-orange-500'}`}>
+                        {isMaxThreat ? 'MAX' : 'HIGH'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {status?.level && (
+                    <div className="mt-3 text-[9px] font-mono text-gray-500 flex justify-between items-center px-1">
+                      <span>LVL {status.level}</span>
+                      <span className="truncate max-w-[100px]">{status.vocation}</span>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
-      </div>
+        )}
 
-      <div className="text-center py-4 border-t border-gray-900/50">
-          <p className="text-gray-700 text-[10px] leading-relaxed font-mono uppercase tracking-widest">
-            Monitoramento tático MJR - Acesso Restrito
-          </p>
-      </div>
-
+        {!loading && filteredNames.length === 0 && (
+          <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
+            <p className="text-sm font-display text-gray-600 uppercase tracking-[0.2em]">No Matches Found in Protocol</p>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };

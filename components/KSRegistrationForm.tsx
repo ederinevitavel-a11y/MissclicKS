@@ -225,13 +225,12 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             >
               <option value="" disabled className="bg-neon-dark">Selecionar Respawn</option>
               {[
-                "Asura Espelho", "Catedral", "Caminho Ferumbras", "Carnivors", "Cobra Castelo",
-                "Crypt Warden", "Deathling", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Goannas",
-                "Gold Token", "Livraria de Fogo", "Livraria de Gelo", "Livraria de Energia",
-                "Livraria de Terra", "Lost Souls", "Lower Roshamuul", "Upper Roshamull",
-                "Nagas", "Nightmare Isles", "POI", "Plague Seal", "Prision",
-                "Seacrest", "Sphinx", "True Asura", "Warzones", "Werelions", "Werehyena",
-                "West", "WereTigers"
+                "Asura Espelho", "Caminho Ferumbras", "Carnivors", "Catedral", "Cobra Castelo",
+                "Crypt Warden", "Deathling", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Fury Oramond", "Goannas",
+                "Gold Token", "Ingol", "Livraria de Energia", "Livraria de Fogo", "Livraria de Gelo",
+                "Livraria de Terra", "Lost Souls", "Lower Roshamuul", "Nagas", "Nightmare Isles",
+                "Plague Seal", "POI", "Prision", "Seacrest", "Sphinx", "True Asura", "Upper Roshamull",
+                "Walls", "Warzones", "Werehyena", "Werelions", "WereTigers", "West"
               ].map(respawn => (
                 <option key={respawn} value={respawn} className="bg-neon-dark">{respawn}</option>
               ))}
