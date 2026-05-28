@@ -142,6 +142,12 @@ const parseCSV = (csvText: string): RawDataRow[] => {
         }
     }
 
+    // Regra automática para alvos específicos (Capistrano)
+    const huntedLower = hunted.toLowerCase();
+    if (huntedLower.includes('capistrano') && points < 2) {
+        points = 2;
+    }
+
     data.push({
       player: name.trim(),
       ks: points, 
