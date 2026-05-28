@@ -4,6 +4,7 @@ import { Podium } from './components/Podium';
 import { RankingList } from './components/RankingList';
 import { Overview } from './components/Overview';
 import { LegendsView } from './components/LegendsView'; 
+import { BlackListView } from './components/BlackListView';
 import { KSRegistrationForm } from './components/KSRegistrationForm';
 import { JoinKSTeamForm } from './components/JoinKSTeamForm';
 import { aggregateData, fetchAndParseData, getOverviewStats } from './services/csvService';
@@ -236,14 +237,23 @@ const App: React.FC = () => {
                         setActiveTab('DADOS_STATS');
                         setDadosSubTab('JOIN_KS_TEAM');
                       }}
+                      onOpenBlackList={() => {
+                        setActiveTab('DADOS_STATS');
+                        setDadosSubTab('BLACK_LIST');
+                      }}
                     />
                   ) : dadosSubTab === 'REGISTRO_KS' ? (
                     <KSRegistrationForm overviewData={overviewData} onBack={() => {
                       setActiveTab('DADOS_STATS');
                       setDadosSubTab(TimeFrame.OVERVIEW);
                     }} />
-                  ) : (
+                  ) : dadosSubTab === 'JOIN_KS_TEAM' ? (
                     <JoinKSTeamForm onBack={() => {
+                      setActiveTab('DADOS_STATS');
+                      setDadosSubTab(TimeFrame.OVERVIEW);
+                    }} />
+                  ) : (
+                    <BlackListView onBack={() => {
                       setActiveTab('DADOS_STATS');
                       setDadosSubTab(TimeFrame.OVERVIEW);
                     }} />
