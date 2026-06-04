@@ -225,12 +225,12 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             >
               <option value="" disabled className="bg-neon-dark">Selecionar Respawn</option>
               {[
-                "Asura Espelho", "Caminho Ferumbras", "Carnivors", "Catedral", "Cobra Castelo",
-                "Crypt Warden", "Deathling", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Fury Oramond", "Goannas",
-                "Gold Token", "Ingol", "Livraria de Energia", "Livraria de Fogo", "Livraria de Gelo",
-                "Livraria de Terra", "Lost Souls", "Lower Roshamuul", "Nagas", "Nightmare Isles",
-                "Plague Seal", "POI", "Prision", "Seacrest", "Sphinx", "True Asura", "Upper Roshamull",
-                "Walls", "Warzones", "Werehyena", "Werelions", "WereTigers", "West"
+                "Asura Espelho", "Bashmu", "Bulltar", "Caminho Ferumbras", "Carnivors", "Catedral", "Cobra Castelo",
+                "Crypt Warden", "Cults", "Deathling", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Falcon", "Fury Oramond", "Glooth Bandit",
+                "Goannas", "Gold Token", "Ingol", "Livraria 4", "Livraria de Energia", "Livraria de Fogo", "Livraria de Gelo",
+                "Livraria de Terra", "Livraria Nova", "Lost Souls", "Lower Roshamuul", "Medusa", "Mithmah", "Nagas", "Nightmare Isles",
+                "Oramond Sewers", "Orclops", "Plague Seal", "POI", "Prision", "Seacrest", "Sphinx", "True Asura",
+                "Upper Roshamull", "Walls", "Warzones", "Werehyena", "Werelions", "WereTigers", "West", "Wyrm Drefia"
               ].map(respawn => (
                 <option key={respawn} value={respawn} className="bg-neon-dark">{respawn}</option>
               ))}

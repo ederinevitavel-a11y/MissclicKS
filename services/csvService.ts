@@ -142,9 +142,9 @@ const parseCSV = (csvText: string): RawDataRow[] => {
         }
     }
 
-    // Regra automática para alvos específicos (Capistrano)
+    // Regra automática para alvos específicos (Leandrin Predator, Capistrano Implacavel, Capistrano)
     const huntedLower = hunted.toLowerCase();
-    if (huntedLower.includes('capistrano') && points < 2) {
+    if ((huntedLower.includes('capistrano') || huntedLower.includes('leandrin predator')) && points < 2) {
         points = 2;
     }
 
