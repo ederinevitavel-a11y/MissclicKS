@@ -1,34 +1,20 @@
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-# 🚀 MissclicKS - Controle de KS MJR
+# Run and deploy your AI Studio app
 
-Sistema de ranking futurista para acompanhamento de Kill Score.
+This contains everything you need to run your app locally.
 
-## 📁 Como preparar para o GitHub
-Para que o sistema funcione corretamente, seu repositório deve ter esta estrutura:
-```
-/
-├── index.html
-├── index.tsx
-├── types.ts
-├── dados.csv        <-- SEU ARQUIVO DE DADOS AQUI
-├── services/
-└── components/
-```
+View your app in AI Studio: https://ai.studio/apps/21addad8-f415-4682-9aac-8ed0abc48904
 
-## 🔗 Por que não consigo conectar ao GitHub?
-Se você tentar usar o link direto `https://github.com/.../dados.csv`, o navegador receberá uma página HTML em vez dos dados puros.
+## Run Locally
 
-**A Solução:**
-1. No GitHub, clique no arquivo `dados.csv`.
-2. Clique no botão **"Raw"** no topo superior direito do arquivo.
-3. Use a URL que abrirá (começa com `raw.githubusercontent.com`).
-4. **DICA:** Se você subir o arquivo `dados.csv` na mesma pasta do `index.html`, o app agora o detectará automaticamente sem precisar de links externos!
+**Prerequisites:**  Node.js
 
-## ⚡ Deploy na Vercel
-1. Crie uma conta em [vercel.com](https://vercel.com).
-2. Conecte seu repositório do GitHub.
-3. No campo "Build Command", deixe vazio (ou coloque `npx tailwindcss -o output.css`).
-4. Clique em **Deploy**.
 
----
-*Desenvolvido para a comunidade MJR.*
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
