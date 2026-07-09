@@ -139,12 +139,22 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
             {data.recentActivity.map((log, i) => {
               const d = new Date(log.date);
-              const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+              const dateStr = !isNaN(d.getTime()) 
+                ? `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}` 
+                : '';
+              const timeStr = !isNaN(d.getTime()) 
+                ? `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` 
+                : '';
+              const displayTime = dateStr ? `[${dateStr} ${timeStr}]` : '';
               return (
                 <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:border-neon-blue/30 transition-all group">
-                  <div className="flex items-center gap-4">
-                    <span className="text-[10px] font-mono text-gray-500">[{timeStr}]</span>
-                    <span className="font-bold text-sm group-hover:text-neon-blue transition-colors">{log.player}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">{displayTime}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <span className="font-bold text-sm group-hover:text-neon-blue transition-colors">{log.player}</span>
+                      <span className="text-[10px] text-zinc-500 font-mono">⚔️</span>
+                      <span className="text-sm font-semibold text-zinc-300">{log.huntedName || 'Hunted'}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-[10px] text-gray-500 font-mono hidden sm:block">{log.respawn}</span>

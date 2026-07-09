@@ -451,7 +451,10 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         weightDistribution: { normal: normalKills, heavy: heavyKills },
         killsByRank,
         topRespawns,
-        recentActivity: rawData.slice(-5).reverse(),
+        recentActivity: [...rawData]
+            .filter(row => row && row.date)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 15),
         dominationStats,
         huntedIntel: {
             timeDistribution: huntedTimeDist,
