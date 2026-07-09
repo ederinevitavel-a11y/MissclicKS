@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { insertKSEntryIntoSupabase } from '../services/supabaseService';
 
 interface KSRegistrationFormProps {
   onSuccess?: () => void;
@@ -84,23 +85,36 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         })
       );
 
-      const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
-      if (!scriptUrl) throw new Error('URL do Script não definida');
-      
-      const formDataToSend = new FormData();
-      Object.entries(formData).forEach(([key, value]) => formDataToSend.append(key, value as string));
-      formDataToSend.append('print1', printsData[0]?.url || '');
-      formDataToSend.append('print2', printsData[1]?.url || '');
-      formDataToSend.append('timestamp', new Date().toLocaleString('pt-BR'));
-      formDataToSend.append('sheetName', 'Respostas ao formulário 2');
+      const validPrints = printsData.filter((p): p is { name: string; url: string } => p !== null);
 
-      await fetch(scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formDataToSend,
+      // Save directly to Supabase Table (Primary Database)
+      await insertKSEntryIntoSupabase({
+        ...formData,
+        prints: validPrints
       });
 
-      setStatus({ type: 'success', message: 'Entrada e screenshots enviadas com sucesso!' });
+      // Optional redundant backup copy to Google Sheet
+      const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
+      if (scriptUrl) {
+        try {
+          const formDataToSend = new FormData();
+          Object.entries(formData).forEach(([key, value]) => formDataToSend.append(key, value as string));
+          formDataToSend.append('print1', validPrints[0]?.url || '');
+          formDataToSend.append('print2', validPrints[1]?.url || '');
+          formDataToSend.append('timestamp', new Date().toLocaleString('pt-BR'));
+          formDataToSend.append('sheetName', 'Respostas ao formulário 2');
+
+          await fetch(scriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: formDataToSend,
+          });
+        } catch (sheetErr) {
+          console.warn("Falha ao salvar cópia de backup na planilha:", sheetErr);
+        }
+      }
+
+      setStatus({ type: 'success', message: 'Entrada registrada com sucesso no banco de dados Supabase!' });
       setShowConfirmation(true);
       setIsSubmitting(false);
     } catch (error: any) {

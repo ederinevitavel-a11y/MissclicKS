@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Upload, ArrowLeft, CheckCircle, User, Target, FileText, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { submitHuntedSuggestionToSupabase } from '../services/supabaseService';
 
 interface SuggestHuntedFormProps {
   onBack: () => void;
@@ -67,21 +68,35 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
         })
       );
 
-      if (!import.meta.env.VITE_SUGGEST_HUNTED_SCRIPT_URL) {
-        throw new Error("A URL do Google Script de 'Sugerir Hunted' não está definida.");
-      }
+      const validPrints = printsData.filter((p): p is { name: string; url: string } => p !== null);
 
-      await fetch(import.meta.env.VITE_SUGGEST_HUNTED_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          charName: formData.charName,
-          huntedName: formData.huntedName,
-          reason: formData.reason,
-          prints: printsData.filter(p => p !== null)
-        }),
+      // Submit directly to Supabase Table (Primary Database)
+      await submitHuntedSuggestionToSupabase({
+        charName: formData.charName,
+        huntedName: formData.huntedName,
+        reason: formData.reason,
+        prints: validPrints
       });
+
+      // Optional backup to Google Script
+      const scriptUrl = import.meta.env.VITE_SUGGEST_HUNTED_SCRIPT_URL;
+      if (scriptUrl) {
+        try {
+          await fetch(scriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              charName: formData.charName,
+              huntedName: formData.huntedName,
+              reason: formData.reason,
+              prints: validPrints
+            }),
+          });
+        } catch (sheetErr) {
+          console.warn("Falha ao salvar cópia de backup na planilha:", sheetErr);
+        }
+      }
 
       setIsSubmitted(true);
     } catch (error: any) {

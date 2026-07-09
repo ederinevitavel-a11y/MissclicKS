@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ShieldAlert, User, Clock, Flame, Zap, ArrowLeft, Search } from 'lucide-react';
 import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
+import { fetchBlackListFromSupabase } from '../services/supabaseService';
 
 interface BlackListViewProps {
   onBack: () => void;
@@ -29,6 +30,7 @@ const BLACKLIST_NAMES = [
 ];
 
 export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
+  const [blacklistNames, setBlacklistNames] = useState<string[]>(BLACKLIST_NAMES);
   const [statuses, setStatuses] = useState<Record<string, CharacterStatus>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,8 +38,19 @@ export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
   useEffect(() => {
     const fetchAllStatuses = async () => {
       setLoading(true);
+      let namesToFetch = BLACKLIST_NAMES;
+      try {
+        const supabaseNames = await fetchBlackListFromSupabase();
+        if (supabaseNames && supabaseNames.length > 0) {
+          namesToFetch = supabaseNames;
+          setBlacklistNames(supabaseNames);
+        }
+      } catch (err) {
+        console.warn("Não foi possível carregar a blacklist do Supabase, usando fallback estático:", err);
+      }
+
       const results = await Promise.all(
-        BLACKLIST_NAMES.map(async (name) => ({
+        namesToFetch.map(async (name) => ({
           name,
           status: await fetchCharacterStatus(name)
         }))
@@ -53,7 +66,7 @@ export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredNames = BLACKLIST_NAMES.filter(name => 
+  const filteredNames = blacklistNames.filter(name => 
     name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 

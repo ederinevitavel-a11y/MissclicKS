@@ -8,8 +8,9 @@ import { BlackListView } from './components/BlackListView';
 import { KSRegistrationForm } from './components/KSRegistrationForm';
 import { JoinKSTeamForm } from './components/JoinKSTeamForm';
 import { aggregateData, fetchAndParseData, getOverviewStats } from './services/csvService';
+import { fetchKSEntriesFromSupabase } from './services/supabaseService';
 import { RankedPlayer, RawDataRow, TimeFrame, OverviewData } from './types';
-import { RefreshCw, LayoutDashboard, Trophy, Shield, Terminal, Skull, Sword } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, Trophy, Shield, Terminal, Skull, Sword, AlertTriangle } from 'lucide-react';
 import { CrosshairIcon } from './components/NeonIcons';
 
 const App: React.FC = () => {
@@ -22,16 +23,76 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<'SUPABASE' | 'CSV'>('CSV');
+  const [supabaseWarning, setSupabaseWarning] = useState<string | null>(null);
 
   const loadData = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
     else setLoading(true);
     
     setError(null);
+    setSupabaseWarning(null);
     try {
-      const data = await fetchAndParseData();
+      const hasSupabaseCreds = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
+      let data: RawDataRow[] = [];
+      let source: 'SUPABASE' | 'CSV' = 'CSV';
+
+      if (hasSupabaseCreds) {
+        try {
+          console.log("Tentando carregar dados do Supabase...");
+          const supabaseData = await fetchKSEntriesFromSupabase();
+          source = 'SUPABASE';
+          
+          console.log("Dados do Supabase obtidos com sucesso. Agora mesclando com o histórico do Google Sheets...");
+          try {
+            const sheetsData = await fetchAndParseData();
+            
+            // Função auxiliar de chave única para evitar registros duplicados na mesclagem
+            const getRowKey = (row: RawDataRow) => {
+              const d = new Date(row.date);
+              const timeMs = isNaN(d.getTime()) ? row.date : d.getTime();
+              return `${row.player.trim().toLowerCase()}_${timeMs}_${row.respawn.trim().toLowerCase()}_${row.huntedName.trim().toLowerCase()}`;
+            };
+            
+            const mergedData = [...supabaseData];
+            const existingKeys = new Set(supabaseData.map(getRowKey));
+            
+            for (const row of sheetsData) {
+              const key = getRowKey(row);
+              if (!existingKeys.has(key)) {
+                mergedData.push(row);
+              }
+            }
+            
+            data = mergedData;
+            console.log(`Dados mesclados com sucesso! Total: ${data.length} registros (${supabaseData.length} do Supabase, ${sheetsData.length - (data.length - supabaseData.length)} vindos do histórico do Google Sheets).`);
+          } catch (sheetsErr) {
+            console.error("Falha ao buscar dados históricos do Google Sheets, usando apenas os registros do Supabase:", sheetsErr);
+            data = supabaseData;
+          }
+        } catch (supabaseErr: any) {
+          console.error("Falha ao acessar o Supabase, carregando backup do Google Sheets:", supabaseErr);
+          let warningMsg = "Não foi possível conectar ao banco do Supabase. Carregando dados do Google Sheets de backup.";
+          
+          const errMsg = supabaseErr?.message || String(supabaseErr);
+          if (errMsg.includes("exceed_storage_size_quota")) {
+            warningMsg = "Seu banco de dados do Supabase atingiu a cota de armazenamento ou de uso (exceed_storage_size_quota). Exibindo dados de backup do Google Sheets.";
+          } else if (errMsg.includes("Could not find the table") || errMsg.includes("relation") || errMsg.includes("does not exist")) {
+            warningMsg = "O seu novo banco de dados do Supabase foi conectado com sucesso, mas as tabelas necessárias (como 'ks_entries') ainda não foram criadas nele. Por favor, execute o script SQL fornecido no chat para criar as tabelas.";
+          }
+          
+          setSupabaseWarning(warningMsg);
+          data = await fetchAndParseData();
+        }
+      } else {
+        console.log("Variáveis do Supabase ausentes. Carregando dados da planilha do Google Sheets...");
+        data = await fetchAndParseData();
+      }
+
+      setDataSource(source);
+
       if (data.length === 0) {
-        setError("A planilha foi lida, mas não encontramos dados válidos.");
+        setError("Não foi possível carregar os dados das fontes ativas (Supabase / Google Sheets).");
       } else {
         setRawData(data);
         setOverviewData(getOverviewStats(data));
@@ -102,9 +163,11 @@ const App: React.FC = () => {
                   <span className="neon-text-blue">MISSCLIC</span>
                   <span className="neon-text-red">KS</span>
                 </h1>
-                <div className="flex items-center gap-1 text-[8px] font-mono text-gray-500 uppercase tracking-widest">
-                  <span className="w-1 h-1 bg-neon-green rounded-full animate-ping" />
-                  Online
+                <div className="flex items-center gap-2 text-[8px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1 h-1 bg-neon-green rounded-full animate-ping" />
+                    Online
+                  </span>
                 </div>
               </div>
             </div>
@@ -167,6 +230,26 @@ const App: React.FC = () => {
 
 
       <div className="relative z-10 container mx-auto px-4 py-8 pb-24 md:pb-8">
+        {supabaseWarning && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-200 text-xs font-mono"
+          >
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+            <div className="flex-1">
+              <span className="font-bold text-amber-400">[SUPABASE] </span>
+              {supabaseWarning}
+            </div>
+            <button 
+              onClick={() => setSupabaseWarning(null)}
+              className="text-amber-500 hover:text-amber-300 ml-2 font-bold cursor-pointer"
+            >
+              ×
+            </button>
+          </motion.div>
+        )}
+
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[60vh] gap-6">
             <div className="relative w-24 h-24">

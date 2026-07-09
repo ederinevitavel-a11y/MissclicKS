@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, User, Phone, Sword, CheckCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { submitTeamApplicationToSupabase } from '../services/supabaseService';
 
 interface JoinKSTeamFormProps {
   onBack: () => void;
@@ -27,16 +28,23 @@ export const JoinKSTeamForm: React.FC<JoinKSTeamFormProps> = ({ onBack }) => {
     setStatus({ type: null, message: '' });
 
     try {
-      if (!import.meta.env.VITE_JOIN_KS_TEAM_SCRIPT_URL) {
-        throw new Error("A URL do Google Script de 'Inscrição Time KS' não está definida.");
-      }
+      // Submit directly to Supabase (Primary Database)
+      await submitTeamApplicationToSupabase(formData);
 
-      await fetch(import.meta.env.VITE_JOIN_KS_TEAM_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      // Optional redundant copy to Google Sheets Script URL
+      const scriptUrl = import.meta.env.VITE_JOIN_KS_TEAM_SCRIPT_URL;
+      if (scriptUrl) {
+        try {
+          await fetch(scriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+          });
+        } catch (sheetErr) {
+          console.warn("Falha ao salvar cópia de backup na planilha:", sheetErr);
+        }
+      }
 
       setIsSubmitted(true);
     } catch (error: any) {

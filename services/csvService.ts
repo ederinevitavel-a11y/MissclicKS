@@ -25,6 +25,59 @@ const fetchWithTimeout = async (url: string, timeout = 10000) => {
   }
 };
 
+const fetchWithProxy = async (url: string, timeout = 10000): Promise<string> => {
+  // 1. Try direct fetch first
+  try {
+    console.log("Tentando carregar os dados diretamente do Google Sheets...");
+    const directUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    const response = await fetchWithTimeout(directUrl, timeout);
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim().length > 10 && !text.includes('<html') && !text.includes('<!DOCTYPE')) {
+        console.log("Sucesso no fetch direto do Google Sheets!");
+        return text;
+      }
+    }
+    console.warn("Retorno do fetch direto é inválido ou HTML, tentando com proxy...");
+  } catch (err) {
+    console.warn("Falha no fetch direto do Google Sheets, tentando com proxy de CORS...", err);
+  }
+
+  // 2. Fallback: corsproxy.io (Very fast and reliable)
+  try {
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`)}`;
+    console.log(`Tentando obter via corsproxy.io: ${proxyUrl}`);
+    const response = await fetchWithTimeout(proxyUrl, timeout);
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim().length > 10 && !text.includes('<html') && !text.includes('<!DOCTYPE')) {
+        console.log("Sucesso ao obter via corsproxy.io!");
+        return text;
+      }
+    }
+  } catch (err) {
+    console.warn("Falha ao obter via corsproxy.io:", err);
+  }
+
+  // 3. Fallback: api.allorigins.win
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`)}`;
+    console.log(`Tentando obter via api.allorigins.win: ${proxyUrl}`);
+    const response = await fetchWithTimeout(proxyUrl, timeout);
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim().length > 10 && !text.includes('<html') && !text.includes('<!DOCTYPE')) {
+        console.log("Sucesso ao obter via api.allorigins.win!");
+        return text;
+      }
+    }
+  } catch (err) {
+    console.warn("Falha ao obter via api.allorigins.win:", err);
+  }
+
+  throw new Error("Não foi possível carregar os dados da planilha do Google Sheets diretamente ou por proxies CORS. Verifique se ela foi publicada na web em formato CSV.");
+};
+
 export const fetchAndParseData = async (): Promise<RawDataRow[]> => {
   const url = getSheetUrl();
   console.log("URL da planilha sendo acessada:", url);
@@ -37,18 +90,12 @@ export const fetchAndParseData = async (): Promise<RawDataRow[]> => {
       console.log("Fetch local OK");
       text = await response.text();
       if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-        console.log("Arquivo local 'dados.csv' não encontrado ou é um HTML. Tentando Google Sheets...");
-        response = await fetchWithTimeout(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`);
-        console.log("Fetch Google Sheets resposta:", response.status);
-        if (!response.ok) throw new Error(`Erro ao acessar Google Sheets: ${response.status}`);
-        text = await response.text();
+        console.log("Arquivo local 'dados.csv' não encontrado ou é um HTML. Tentando Google Sheets com proxies...");
+        text = await fetchWithProxy(url);
       }
     } else {
-      console.log("Fetch local falhou, tentando Google Sheets...");
-      response = await fetchWithTimeout(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`);
-      console.log("Fetch Google Sheets resposta:", response.status);
-      if (!response.ok) throw new Error(`Erro ao acessar Google Sheets: ${response.status}`);
-      text = await response.text();
+      console.log("Fetch local falhou, tentando Google Sheets com proxies...");
+      text = await fetchWithProxy(url);
     }
     
     if (!text || text.trim().length < 10) {
@@ -142,10 +189,16 @@ const parseCSV = (csvText: string): RawDataRow[] => {
         }
     }
 
-    // Regra automática para alvos específicos (Leandrin Predator, Capistrano Implacavel, Capistrano)
-    const huntedLower = hunted.toLowerCase();
-    if ((huntedLower.includes('capistrano') || huntedLower.includes('leandrin predator')) && points < 2) {
-        points = 2;
+    // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 obrigatoriamente
+    const cutoffDate = new Date('2026-07-09T00:00:00');
+    if (dateObj >= cutoffDate) {
+        points = 1;
+    } else {
+        // Regra automática antiga para alvos específicos (Leandrin Predator, Capistrano Implacavel, Capistrano)
+        const huntedLower = hunted.toLowerCase();
+        if ((huntedLower.includes('capistrano') || huntedLower.includes('leandrin predator')) && points < 2) {
+            points = 2;
+        }
     }
 
     data.push({
