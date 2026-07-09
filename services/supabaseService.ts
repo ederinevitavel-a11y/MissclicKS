@@ -16,13 +16,21 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     points = 1;
   }
 
+  const player = row.player || row.char_name || row.charName || row.name || '';
+  const huntedName = row.huntedName || row.hunted_name || row.hunted_target || '';
+
+  // Se o jogador ou alvo for Capistrano, o peso deve ser sempre 1 (conforme regra do usuário)
+  if (player.toLowerCase().includes('capistrano') || huntedName.toLowerCase().includes('capistrano')) {
+    points = 1;
+  }
+
   return {
-    player: row.player || row.char_name || row.charName || row.name || '',
+    player,
     ks: points,
     date: dateStr,
     playerRank: row.playerRank || row.player_rank || row.rank || 'Member',
     respawn: row.respawn || 'Unknown Area',
-    huntedName: row.huntedName || row.hunted_name || row.hunted_target || '',
+    huntedName,
     usualTime: row.usualTime || row.usual_time || row.time || ''
   };
 };

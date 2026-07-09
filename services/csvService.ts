@@ -191,14 +191,22 @@ const parseCSV = (csvText: string): RawDataRow[] => {
 
     // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 obrigatoriamente
     const cutoffDate = new Date('2026-07-09T00:00:00');
+    
+    const playerLower = name.toLowerCase();
+    const huntedLower = hunted.toLowerCase();
+    const isSpecialPlayer = 
+        playerLower.includes('leandrin invencivel') || 
+        playerLower.includes('leandrin predator') || 
+        playerLower.includes('capistrano') ||
+        huntedLower.includes('leandrin invencivel') || 
+        huntedLower.includes('leandrin predator') || 
+        huntedLower.includes('capistrano');
+
     if (dateObj >= cutoffDate) {
         points = 1;
-    } else {
-        // Regra automática antiga para alvos específicos (Leandrin Predator, Capistrano Implacavel, Capistrano)
-        const huntedLower = hunted.toLowerCase();
-        if ((huntedLower.includes('capistrano') || huntedLower.includes('leandrin predator')) && points < 2) {
-            points = 2;
-        }
+    } else if (isSpecialPlayer) {
+        // Regra automática para registros com data anterior a 09/07/2026
+        points = 2;
     }
 
     data.push({
@@ -238,7 +246,8 @@ const parseCSVLine = (text: string, delimiter: string): string[] => {
 };
 
 const parseFlexibleDate = (dateStr: string): Date | null => {
-    const cleanStr = dateStr.trim();
+    // Substitui vírgulas por espaços para garantir o match com data/hora em formato BR (ex: "09/07/2026, 13:20:47")
+    const cleanStr = dateStr.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
     // Tenta DD/MM/YYYY HH:mm:ss
     const dateMatch = cleanStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})(?:\s+(\d{1,2})[:h](\d{1,2})[:h]?(\d{1,2})?)?/i);
     if (dateMatch) {

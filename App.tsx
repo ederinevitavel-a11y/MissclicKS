@@ -47,19 +47,29 @@ const App: React.FC = () => {
           try {
             const sheetsData = await fetchAndParseData();
             
-            // Função auxiliar de chave única para evitar registros duplicados na mesclagem
-            const getRowKey = (row: RawDataRow) => {
-              const d = new Date(row.date);
-              const timeMs = isNaN(d.getTime()) ? row.date : d.getTime();
-              return `${row.player.trim().toLowerCase()}_${timeMs}_${row.respawn.trim().toLowerCase()}_${row.huntedName.trim().toLowerCase()}`;
-            };
-            
             const mergedData = [...supabaseData];
-            const existingKeys = new Set(supabaseData.map(getRowKey));
             
             for (const row of sheetsData) {
-              const key = getRowKey(row);
-              if (!existingKeys.has(key)) {
+              const isAlreadyPresent = supabaseData.some(supaRow => {
+                if (supaRow.player.trim().toLowerCase() !== row.player.trim().toLowerCase()) return false;
+                if (supaRow.huntedName.trim().toLowerCase() !== row.huntedName.trim().toLowerCase()) return false;
+                
+                const respawnA = supaRow.respawn.trim().toLowerCase();
+                const respawnB = row.respawn.trim().toLowerCase();
+                if (respawnA !== respawnB) return false;
+
+                const dateA = new Date(supaRow.date);
+                const dateB = new Date(row.date);
+                if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+                  return supaRow.date === row.date;
+                }
+
+                const diffMs = Math.abs(dateA.getTime() - dateB.getTime());
+                // Tolerância de 24 horas para compensar fusos horários, milissegundos e atrasos de sincronização
+                return diffMs < 24 * 60 * 60 * 1000;
+              });
+
+              if (!isAlreadyPresent) {
                 mergedData.push(row);
               }
             }
