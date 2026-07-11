@@ -16,8 +16,8 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     points = 1;
   }
 
-  const player = row.player || row.char_name || row.charName || row.name || '';
-  const huntedName = row.huntedName || row.hunted_name || row.hunted_target || '';
+  const player = (row.player || row.char_name || row.charName || row.name || '').trim();
+  const huntedName = (row.huntedName || row.hunted_name || row.hunted_target || '').trim();
 
   // Se o jogador ou alvo for Capistrano, o peso deve ser sempre 1 (conforme regra do usuário)
   if (player.toLowerCase().includes('capistrano') || huntedName.toLowerCase().includes('capistrano')) {

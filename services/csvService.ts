@@ -5,8 +5,9 @@ const GITHUB_CSV_NAME = 'dados.csv';
 const DEFAULT_FALLBACK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?output=csv';
 
 const getSheetUrl = () => {
-  const customUrl = localStorage.getItem('CUSTOM_SHEET_URL');
-  return customUrl || import.meta.env.VITE_SHEET_URL || DEFAULT_FALLBACK;
+  const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('CUSTOM_SHEET_URL') : null;
+  const envUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SHEET_URL) || process.env.VITE_SHEET_URL;
+  return customUrl || envUrl || DEFAULT_FALLBACK;
 };
 
 const fetchWithTimeout = async (url: string, timeout = 10000) => {
@@ -82,19 +83,23 @@ export const fetchAndParseData = async (): Promise<RawDataRow[]> => {
   const url = getSheetUrl();
   console.log("URL da planilha sendo acessada:", url);
   try {
-    console.log("Tentando fetch local...");
-    let response = await fetch(`./${GITHUB_CSV_NAME}?t=${Date.now()}`);
     let text = "";
-    
-    if (response.ok) {
-      console.log("Fetch local OK");
-      text = await response.text();
-      if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-        console.log("Arquivo local 'dados.csv' não encontrado ou é um HTML. Tentando Google Sheets com proxies...");
+    try {
+      console.log("Tentando fetch local...");
+      const response = await fetch(`./${GITHUB_CSV_NAME}?t=${Date.now()}`);
+      if (response.ok) {
+        console.log("Fetch local OK");
+        text = await response.text();
+        if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+          console.log("Arquivo local 'dados.csv' não encontrado ou é um HTML. Tentando Google Sheets com proxies...");
+          text = await fetchWithProxy(url);
+        }
+      } else {
+        console.log("Fetch local falhou, tentando Google Sheets com proxies...");
         text = await fetchWithProxy(url);
       }
-    } else {
-      console.log("Fetch local falhou, tentando Google Sheets com proxies...");
+    } catch (localErr) {
+      console.log("Fetch local lançou erro, tentando obter do Google Sheets com proxies...", localErr);
       text = await fetchWithProxy(url);
     }
     
@@ -251,14 +256,20 @@ const parseFlexibleDate = (dateStr: string): Date | null => {
     // Tenta DD/MM/YYYY HH:mm:ss
     const dateMatch = cleanStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})(?:\s+(\d{1,2})[:h](\d{1,2})[:h]?(\d{1,2})?)?/i);
     if (dateMatch) {
-        const day = parseInt(dateMatch[1]);
-        const month = parseInt(dateMatch[2]) - 1;
-        let year = parseInt(dateMatch[3]);
-        if (year < 100) year += 2000;
-        const hour = dateMatch[4] ? parseInt(dateMatch[4]) : 0;
-        const minute = dateMatch[5] ? parseInt(dateMatch[5]) : 0;
-        const second = dateMatch[6] ? parseInt(dateMatch[6]) : 0;
-        return new Date(year, month, day, hour, minute, second);
+        const day = dateMatch[1].padStart(2, '0');
+        const month = dateMatch[2].padStart(2, '0');
+        let year = dateMatch[3];
+        if (year.length === 2) year = '20' + year;
+        const hour = dateMatch[4] ? dateMatch[4].padStart(2, '0') : '00';
+        const minute = dateMatch[5] ? dateMatch[5].padStart(2, '0') : '00';
+        const second = dateMatch[6] ? dateMatch[6].padStart(2, '0') : '00';
+        
+        // Os timestamps da planilha/Google Forms são gerados no horário de Brasília (UTC-3)
+        const isoStr = `${year}-${month}-${day}T${hour}:${minute}:${second}-03:00`;
+        const d = new Date(isoStr);
+        if (!isNaN(d.getTime())) {
+            return d;
+        }
     }
     const iso = new Date(cleanStr);
     return isNaN(iso.getTime()) ? null : iso;
@@ -290,6 +301,9 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         const date = new Date(row.date);
         if (isNaN(date.getTime())) return;
         
+        const trimmedPlayer = row.player.trim();
+        const trimmedHunted = row.huntedName ? row.huntedName.trim() : '';
+
         totalKills += row.ks;
         if (row.ks > 1) heavyKills++; else normalKills++;
         
@@ -300,17 +314,17 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + row.ks);
         rankMap.set(row.playerRank, (rankMap.get(row.playerRank) || 0) + row.ks);
         respawnMap.set(row.respawn, (respawnMap.get(row.respawn) || 0) + row.ks);
-        playerTotalMap.set(row.player, (playerTotalMap.get(row.player) || 0) + row.ks);
+        playerTotalMap.set(trimmedPlayer, (playerTotalMap.get(trimmedPlayer) || 0) + row.ks);
 
         // Activity Streak Logic
-        if (!playerActivityMap.has(row.player)) {
-            playerActivityMap.set(row.player, new Set());
+        if (!playerActivityMap.has(trimmedPlayer)) {
+            playerActivityMap.set(trimmedPlayer, new Set());
         }
-        playerActivityMap.get(row.player)!.add(dateKey);
+        playerActivityMap.get(trimmedPlayer)!.add(dateKey);
 
         // Processamento de Hunted nos últimos 30 dias
-        if (row.huntedName && row.huntedName !== '' && date >= thirtyDaysAgo) {
-            const huntedData = huntedMap.get(row.huntedName) || { 
+        if (trimmedHunted && trimmedHunted !== '' && date >= thirtyDaysAgo) {
+            const huntedData = huntedMap.get(trimmedHunted) || { 
               count: 0, 
               hours: new Map<string, number>(), 
               locations: new Map<string, number>(),
@@ -319,11 +333,11 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
             huntedData.count++;
             
             // Nemesis Logic
-            if (!huntedNemesisMap.has(row.huntedName)) {
-                huntedNemesisMap.set(row.huntedName, new Map());
+            if (!huntedNemesisMap.has(trimmedHunted)) {
+                huntedNemesisMap.set(trimmedHunted, new Map());
             }
-            const killers = huntedNemesisMap.get(row.huntedName)!;
-            killers.set(row.player, (killers.get(row.player) || 0) + row.ks);
+            const killers = huntedNemesisMap.get(trimmedHunted)!;
+            killers.set(trimmedPlayer, (killers.get(trimmedPlayer) || 0) + row.ks);
             
             // Atualiza data do último avistamento
             if (date > huntedData.lastSeen) {
@@ -483,8 +497,9 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
     }
     return true;
   }).forEach(row => {
-    const current = playerMap.get(row.player) || { totalKS: 0, games: 0 };
-    playerMap.set(row.player, { totalKS: current.totalKS + row.ks, games: current.games + 1 });
+    const trimmedPlayer = row.player.trim();
+    const current = playerMap.get(trimmedPlayer) || { totalKS: 0, games: 0 };
+    playerMap.set(trimmedPlayer, { totalKS: current.totalKS + row.ks, games: current.games + 1 });
   });
 
   return Array.from(playerMap.entries())

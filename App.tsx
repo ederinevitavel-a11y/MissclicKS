@@ -65,8 +65,8 @@ const App: React.FC = () => {
                 }
 
                 const diffMs = Math.abs(dateA.getTime() - dateB.getTime());
-                // Tolerância de 24 horas para compensar fusos horários, milissegundos e atrasos de sincronização
-                return diffMs < 24 * 60 * 60 * 1000;
+                // Tolerância de 30 minutos para compensar atrasos de rede e garantir precisão
+                return diffMs < 30 * 60 * 1000;
               });
 
               if (!isAlreadyPresent) {
