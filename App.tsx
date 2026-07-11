@@ -47,10 +47,11 @@ const App: React.FC = () => {
           try {
             const sheetsData = await fetchAndParseData();
             
-            const mergedData = [...supabaseData];
-            
-            for (const row of sheetsData) {
-              const isAlreadyPresent = supabaseData.some(supaRow => {
+            // Sincronização robusta: o Google Sheets é a fonte de verdade para moderação/exclusões.
+            // Filtramos os dados do Supabase: se um registro do Supabase NÃO estiver na planilha e for mais antigo
+            // que 15 minutos, consideramos que ele foi excluído da planilha pelo administrador e o ignoramos.
+            const validSupabaseData = supabaseData.filter(supaRow => {
+              const isPresentInSheets = sheetsData.some(row => {
                 if (supaRow.player.trim().toLowerCase() !== row.player.trim().toLowerCase()) return false;
                 if (supaRow.huntedName.trim().toLowerCase() !== row.huntedName.trim().toLowerCase()) return false;
                 
@@ -65,7 +66,42 @@ const App: React.FC = () => {
                 }
 
                 const diffMs = Math.abs(dateA.getTime() - dateB.getTime());
-                // Tolerância de 30 minutos para compensar atrasos de rede e garantir precisão
+                return diffMs < 30 * 60 * 1000; // tolerância de 30 minutos
+              });
+
+              if (isPresentInSheets) return true;
+
+              // Se não está na planilha, mas é um registro super recente (< 15 minutos), mantemos (tempo de propagação/sincronização)
+              const supaDate = new Date(supaRow.date);
+              if (!isNaN(supaDate.getTime())) {
+                const diffMs = Date.now() - supaDate.getTime();
+                if (diffMs < 15 * 60 * 1000) {
+                  return true;
+                }
+              }
+
+              console.log(`[Sync] Ignorando registro do Supabase excluído no Google Sheets: ${supaRow.player} contra ${supaRow.huntedName} em ${supaRow.date}`);
+              return false;
+            });
+
+            const mergedData = [...validSupabaseData];
+            
+            for (const row of sheetsData) {
+              const isAlreadyPresent = validSupabaseData.some(supaRow => {
+                if (supaRow.player.trim().toLowerCase() !== row.player.trim().toLowerCase()) return false;
+                if (supaRow.huntedName.trim().toLowerCase() !== row.huntedName.trim().toLowerCase()) return false;
+                
+                const respawnA = supaRow.respawn.trim().toLowerCase();
+                const respawnB = row.respawn.trim().toLowerCase();
+                if (respawnA !== respawnB) return false;
+
+                const dateA = new Date(supaRow.date);
+                const dateB = new Date(row.date);
+                if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+                  return supaRow.date === row.date;
+                }
+
+                const diffMs = Math.abs(dateA.getTime() - dateB.getTime());
                 return diffMs < 30 * 60 * 1000;
               });
 
@@ -75,7 +111,7 @@ const App: React.FC = () => {
             }
             
             data = mergedData;
-            console.log(`Dados mesclados com sucesso! Total: ${data.length} registros (${supabaseData.length} do Supabase, ${sheetsData.length - (data.length - supabaseData.length)} vindos do histórico do Google Sheets).`);
+            console.log(`Dados mesclados com sucesso! Total: ${data.length} registros (${validSupabaseData.length} do Supabase válidos, ${sheetsData.length - (data.length - validSupabaseData.length)} vindos do histórico do Google Sheets).`);
           } catch (sheetsErr) {
             console.error("Falha ao buscar dados históricos do Google Sheets, usando apenas os registros do Supabase:", sheetsErr);
             data = supabaseData;
