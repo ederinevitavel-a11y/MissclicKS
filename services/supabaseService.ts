@@ -31,7 +31,8 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     playerRank: row.playerRank || row.player_rank || row.rank || 'Member',
     respawn: row.respawn || 'Unknown Area',
     huntedName,
-    usualTime: row.usualTime || row.usual_time || row.time || ''
+    usualTime: row.usualTime || row.usual_time || row.time || '',
+    email: row.email || ''
   };
 };
 

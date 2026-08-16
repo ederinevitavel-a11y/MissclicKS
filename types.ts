@@ -15,6 +15,7 @@ export interface RawDataRow {
   respawn: string; 
   huntedName?: string; // Coluna E
   usualTime?: string;  // Coluna M
+  email?: string;      // E-mail do operador que realizou o registro
 }
 
 export interface RankedPlayer {

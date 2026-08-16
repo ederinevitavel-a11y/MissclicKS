@@ -510,3 +510,50 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
     .sort((a, b) => b.totalKS - a.totalKS)
     .map((p, i) => ({ ...p, rank: i + 1, trend: i < 3 ? 'up' as const : 'same' as const }));
 };
+
+export const fetchAllowedEmailsFromCSV = async (): Promise<string[]> => {
+  try {
+    const url = getSheetUrl();
+    // Forçar a busca na aba "Respostas ao formulário 2" usando o GID 944482874
+    let targetUrl = url;
+    if (url.includes('/pub')) {
+      const baseUrl = url.split('/pub')[0];
+      targetUrl = `${baseUrl}/pub?gid=944482874&output=csv`;
+    } else {
+      targetUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?gid=944482874&output=csv`;
+    }
+    
+    console.log("Buscando e-mails autorizados em:", targetUrl);
+    const text = await fetchWithProxy(targetUrl);
+    if (!text || text.trim().length < 10) return [];
+    
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length < 2) return [];
+
+    const header = lines[0];
+    const delimiter = detectDelimiter(header);
+    const headers = parseCSVLine(header, delimiter).map(h => h.toLowerCase().trim());
+    
+    // Na aba "Respostas ao formulário 2", a coluna B (índice 1) é "Endereço de e-mail"
+    let idxEmail = headers.findIndex(h => h.includes('email') || h.includes('e-mail') || h.includes('endereço') || h.includes('mail'));
+    if (idxEmail === -1) idxEmail = 1;
+
+    const emails = new Set<string>();
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i], delimiter);
+      if (cols.length > idxEmail) {
+        const email = cols[idxEmail].trim().toLowerCase();
+        if (email && email.includes('@')) {
+          emails.add(email);
+        }
+      }
+    }
+    const result = Array.from(emails);
+    console.log(`Encontrados ${result.length} e-mails autorizados na aba Respostas ao formulário 2 (Coluna B).`);
+    return result;
+  } catch (err) {
+    console.error("Erro ao buscar e-mails autorizados da aba Respostas ao formulário 2:", err);
+    return [];
+  }
+};
+

@@ -71,7 +71,13 @@ const App: React.FC = () => {
 
               if (isPresentInSheets) return true;
 
-              // Se não está na planilha, mas é um registro super recente (< 15 minutos), mantemos (tempo de propagação/sincronização)
+              // Se o registro foi feito por Eder (ederinevitavel@gmail.com), se foi removido da planilha, ignoramos IMEDIATAMENTE (sem carência de 15 minutos)
+              if (supaRow.email && supaRow.email.trim().toLowerCase() === 'ederinevitavel@gmail.com') {
+                console.log(`[Sync] Registro do Eder excluído na planilha. Removendo imediatamente da contagem: ${supaRow.player} contra ${supaRow.huntedName}`);
+                return false;
+              }
+
+              // Se não está na planilha, mas é um registro super recente (< 15 minutos) de outro operador, mantemos (tempo de propagação/sincronização)
               const supaDate = new Date(supaRow.date);
               if (!isNaN(supaDate.getTime())) {
                 const diffMs = Date.now() - supaDate.getTime();
@@ -372,7 +378,7 @@ const App: React.FC = () => {
                       }}
                     />
                   ) : dadosSubTab === 'REGISTRO_KS' ? (
-                    <KSRegistrationForm overviewData={overviewData} onBack={() => {
+                    <KSRegistrationForm overviewData={overviewData} rawData={rawData} onBack={() => {
                       setActiveTab('DADOS_STATS');
                       setDadosSubTab(TimeFrame.OVERVIEW);
                     }} />
