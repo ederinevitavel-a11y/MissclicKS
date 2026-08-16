@@ -49,7 +49,7 @@ const App: React.FC = () => {
             
             // Sincronização robusta: o Google Sheets é a fonte de verdade para moderação/exclusões.
             // Filtramos os dados do Supabase: se um registro do Supabase NÃO estiver na planilha e for mais antigo
-            // que 15 minutos, consideramos que ele foi excluído da planilha pelo administrador e o ignoramos.
+            // que 1 minuto, consideramos que ele foi excluído da planilha pelo administrador e o ignoramos de forma imediata.
             const validSupabaseData = supabaseData.filter(supaRow => {
               const isPresentInSheets = sheetsData.some(row => {
                 if (supaRow.player.trim().toLowerCase() !== row.player.trim().toLowerCase()) return false;
@@ -71,17 +71,11 @@ const App: React.FC = () => {
 
               if (isPresentInSheets) return true;
 
-              // Se o registro foi feito por Eder (ederinevitavel@gmail.com), se foi removido da planilha, ignoramos IMEDIATAMENTE (sem carência de 15 minutos)
-              if (supaRow.email && supaRow.email.trim().toLowerCase() === 'ederinevitavel@gmail.com') {
-                console.log(`[Sync] Registro do Eder excluído na planilha. Removendo imediatamente da contagem: ${supaRow.player} contra ${supaRow.huntedName}`);
-                return false;
-              }
-
-              // Se não está na planilha, mas é um registro super recente (< 15 minutos) de outro operador, mantemos (tempo de propagação/sincronização)
+              // Se não está na planilha, mas é um registro extremamente recente (< 1 minuto), mantemos apenas para dar tempo da sincronização de envio do formulário inicial
               const supaDate = new Date(supaRow.date);
               if (!isNaN(supaDate.getTime())) {
                 const diffMs = Date.now() - supaDate.getTime();
-                if (diffMs < 15 * 60 * 1000) {
+                if (diffMs < 60 * 1000) {
                   return true;
                 }
               }
