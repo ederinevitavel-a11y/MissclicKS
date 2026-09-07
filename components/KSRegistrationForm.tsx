@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key, Clock, ShieldAlert, LogIn, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { insertKSEntryIntoSupabase, fetchBlackListFromSupabase } from '../services/supabaseService';
-import { fetchAllowedEmailsFromCSV } from '../services/csvService';
+import { fetchAllowedEmailsFromCSV, KNOWN_AUTHORIZED_EMAILS } from '../services/csvService';
 
 interface KSRegistrationFormProps {
   onSuccess?: () => void;
@@ -28,8 +28,8 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
 
   // Authorized Emails states
-  const [allowedEmails, setAllowedEmails] = useState<string[]>([]);
-  const [loadingEmails, setLoadingEmails] = useState(true);
+  const [allowedEmails, setAllowedEmails] = useState<string[]>(KNOWN_AUTHORIZED_EMAILS.map(e => e.trim().toLowerCase()));
+  const [loadingEmails, setLoadingEmails] = useState(false);
 
   // Anti-Spam Rate Limiting States
   const [cooldown, setCooldown] = useState({ active: false, seconds: 0, hourly: false });
@@ -122,7 +122,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
         setAllowedEmails(formattedEmails);
       } catch (err) {
         console.error("Falha ao carregar e-mails autorizados:", err);
-        setAllowedEmails(['ederinevitavel@gmail.com']);
+        setAllowedEmails(KNOWN_AUTHORIZED_EMAILS.map(e => e.trim().toLowerCase()));
       } finally {
         setLoadingEmails(false);
       }

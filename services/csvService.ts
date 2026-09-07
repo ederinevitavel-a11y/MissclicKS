@@ -511,19 +511,75 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
     .map((p, i) => ({ ...p, rank: i + 1, trend: i < 3 ? 'up' as const : 'same' as const }));
 };
 
-export const fetchAllowedEmailsFromCSV = async (): Promise<string[]> => {
+export const KNOWN_AUTHORIZED_EMAILS: string[] = [
+  'ederinevitavel@gmail.com',
+  'wah-oliveira@hotmail.com',
+  'joaopedromarinelli@hotmail.com',
+  'maikonfoz.25@gmail.com',
+  'eduardo_sagrat@hotmail.com',
+  'vitoriaeh@gmail.com',
+  'kalesreplays@gmail.com',
+  'pedro.faloppa@hotmail.com',
+  'gilsonlucenabarbosa21@gmail.com',
+  'levyscastro@gmail.com',
+  'gandrellgreen@gmail.com',
+  'richardgmn@gmail.com',
+  'lyncondossantosss@gmail.com',
+  'balthiapp@gmail.com',
+  'felipe.santos@felipeas.com.br',
+  'natansantoscarvalho@hotmail.com',
+  'peulacerda87@gmail.com',
+  'wallacevilefort@hotmail.com',
+  'hugocronem@gmail.com',
+  'matheus.lopes1@hotmail.com',
+  'faduti123@gmail.com',
+  'raphaellasakis@gmail.com',
+  'rodrigorguesr@gmail.com',
+  'pati.contabil2013@gmail.c9m',
+  'igoraugustodeola@gmail.com',
+  'luan_fs@hotmail.com',
+  'muscles.brpb@gmail.com',
+  'rodrigo_zobolli@hotmail.com',
+  'thiagogfernandes1988@gmail.com',
+  'elcirpereira96@gmail.com',
+  'leticia.mps@outlook.com',
+  'thawan.costa@gmail.com',
+  'amorimj6@gmail.com',
+  'thiiagoroberto0@gmail.com',
+  'danieldeboer91@gmail.com',
+  'vacilao.maconha@gmail.com',
+  'juliaamandabecker@gmail.com',
+  'rcvidal.ima@gmail.com',
+  'lucas.r.n@hotmail.com.br',
+  'timtimratao007@gmail.com',
+  'jonas_candido@yahoo.com.br',
+  'boletoqlz@gmail.com',
+  'vitor.maia1004@gmail.com',
+  'juan.azevedo@gmail.com',
+  'sasaki121294@gmail.com',
+  'raphaelmaishak@gmail.com',
+  'ags.vero@gmail.com',
+  'vitorlvf1@gmail.com',
+  'altoe.roney@gmail.com',
+  'unidadesdrhc@gmail.com',
+  'guilherme.cpaz1@gmail.com',
+  'dh_muniz@outlook.com',
+  'glenio.maciel@gmail.com',
+  'rokozera@gmail.com'
+];
+
+const fetchEmailsFromSheetGid = async (gid: string): Promise<string[]> => {
   try {
     const url = getSheetUrl();
-    // Forçar a busca na aba "Respostas ao formulário 2" usando o GID 944482874
     let targetUrl = url;
     if (url.includes('/pub')) {
       const baseUrl = url.split('/pub')[0];
-      targetUrl = `${baseUrl}/pub?gid=944482874&output=csv`;
+      targetUrl = `${baseUrl}/pub?gid=${gid}&output=csv`;
     } else {
-      targetUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?gid=944482874&output=csv`;
+      targetUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?gid=${gid}&output=csv`;
     }
     
-    console.log("Buscando e-mails autorizados em:", targetUrl);
+    console.log(`Buscando e-mails autorizados no GID ${gid} em:`, targetUrl);
     const text = await fetchWithProxy(targetUrl);
     if (!text || text.trim().length < 10) return [];
     
@@ -534,26 +590,47 @@ export const fetchAllowedEmailsFromCSV = async (): Promise<string[]> => {
     const delimiter = detectDelimiter(header);
     const headers = parseCSVLine(header, delimiter).map(h => h.toLowerCase().trim());
     
-    // Na aba "Respostas ao formulário 2", a coluna B (índice 1) é "Endereço de e-mail"
+    // Procura coluna de e-mail ou assume coluna B (índice 1)
     let idxEmail = headers.findIndex(h => h.includes('email') || h.includes('e-mail') || h.includes('endereço') || h.includes('mail'));
     if (idxEmail === -1) idxEmail = 1;
 
-    const emails = new Set<string>();
+    const emails: string[] = [];
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i], delimiter);
       if (cols.length > idxEmail) {
         const email = cols[idxEmail].trim().toLowerCase();
         if (email && email.includes('@')) {
-          emails.add(email);
+          emails.push(email);
         }
       }
     }
-    const result = Array.from(emails);
-    console.log(`Encontrados ${result.length} e-mails autorizados na aba Respostas ao formulário 2 (Coluna B).`);
+    return emails;
+  } catch (err) {
+    console.warn(`Aviso ao buscar e-mails do GID ${gid}:`, err);
+    return [];
+  }
+};
+
+export const fetchAllowedEmailsFromCSV = async (): Promise<string[]> => {
+  const emailSet = new Set<string>(KNOWN_AUTHORIZED_EMAILS.map(e => e.trim().toLowerCase()));
+
+  try {
+    // 1. Aba Respostas ao formulário 2 (GID 944482874 - Coluna B)
+    // 2. Aba Inscrição (GID 739347321 - Coluna B)
+    const [ksEmails, inscricaoEmails] = await Promise.all([
+      fetchEmailsFromSheetGid('944482874'),
+      fetchEmailsFromSheetGid('739347321')
+    ]);
+
+    ksEmails.forEach(e => emailSet.add(e));
+    inscricaoEmails.forEach(e => emailSet.add(e));
+
+    const result = Array.from(emailSet);
+    console.log(`Encontrados ${result.length} e-mails autorizados (incluindo aba Inscrição e Respostas).`);
     return result;
   } catch (err) {
-    console.error("Erro ao buscar e-mails autorizados da aba Respostas ao formulário 2:", err);
-    return [];
+    console.error("Erro ao buscar e-mails autorizados das abas da planilha:", err);
+    return Array.from(emailSet);
   }
 };
 
