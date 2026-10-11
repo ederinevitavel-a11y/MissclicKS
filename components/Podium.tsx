@@ -81,10 +81,11 @@ const PodiumStep: React.FC<{ player: RankedPlayer; place: 1 | 2 | 3 }> = ({ play
             {player.name}
           </h3>
           <div className="mt-4">
-            <p className="text-[8px] text-gray-500 uppercase font-mono tracking-widest">Combat Score</p>
+            <p className="text-[8px] text-gray-500 uppercase font-mono tracking-widest">Total KS</p>
             <p className={`font-display font-black ${isFirst ? 'text-3xl' : 'text-2xl'} ${style.text}`}>
               {player.totalKS}
             </p>
+            <span className="text-[10px] font-mono text-gray-400 block">KS</span>
           </div>
         </div>
 

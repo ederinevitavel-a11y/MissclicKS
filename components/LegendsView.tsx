@@ -76,7 +76,7 @@ export const LegendsView: React.FC<LegendsViewProps> = ({ players }) => {
                     <span className="font-display font-black text-xl text-white group-hover:neon-text-blue">
                       {p.totalKS}
                     </span>
-                    <span className="text-[8px] text-gray-600 uppercase ml-2 font-mono">Total KS</span>
+                    <span className="text-[10px] font-mono text-gray-500 block">KS</span>
                   </div>
                 </div>
               </motion.div>
@@ -159,12 +159,13 @@ const LegendCard: React.FC<{ player: RankedPlayer; rank: number; type: 'gold' | 
         </div>
 
         <div className="relative z-10 w-full pt-6 border-t border-white/10">
-          <p className="text-[9px] text-gray-500 uppercase font-mono tracking-widest mb-2">Lifetime Combat Score</p>
+          <p className="text-[9px] text-gray-500 uppercase font-mono tracking-widest mb-2">Total KS</p>
           <div className="flex items-center justify-center gap-2">
             <Zap className={`w-4 h-4 ${s.text}`} />
             <span className="font-display font-black text-4xl text-white">
               {player.totalKS}
             </span>
+            <span className={`text-xs font-mono font-bold ${s.text}`}>KS</span>
           </div>
         </div>
 

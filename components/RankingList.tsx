@@ -26,9 +26,9 @@ export const RankingList: React.FC<RankingListProps> = ({ players }) => {
           <span className="w-8 flex justify-center"><Hash className="w-3 h-3" /></span>
           <span>Combatant</span>
         </div>
-        <div className="flex items-center gap-12">
+        <div className="flex items-center gap-6 sm:gap-10">
           <span className="w-12 text-center hidden sm:block"><TrendingUp className="w-3 h-3 mx-auto" /></span>
-          <span className="w-16 text-right"><Activity className="w-3 h-3 ml-auto" /></span>
+          <span className="w-24 text-right flex items-center justify-end gap-1"><Activity className="w-3 h-3" /> KS</span>
         </div>
       </div>
       
@@ -51,21 +51,21 @@ export const RankingList: React.FC<RankingListProps> = ({ players }) => {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm group-hover:text-white transition-colors">{player.name}</h4>
-                  <p className="text-[10px] text-gray-500 font-mono uppercase">{player.gamesPlayed} KS</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-12">
+            <div className="flex items-center gap-6 sm:gap-10">
               <div className="w-12 flex justify-center hidden sm:block">
                 {player.trend === 'up' && <TrendUp className="w-4 h-4 text-neon-green" />}
                 {player.trend === 'down' && <TrendDown className="w-4 h-4 text-red-500" />}
                 {player.trend === 'same' && <TrendSame className="w-4 h-4 text-gray-700" />}
               </div>
-              <div className="w-16 text-right">
-                <span className="font-display font-black text-lg text-white group-hover:neon-text-blue transition-all">
+              <div className="w-24 text-right">
+                <span className="font-display font-black text-xl text-white group-hover:neon-text-blue transition-all">
                   {player.totalKS}
                 </span>
+                <span className="text-[10px] font-mono text-gray-500 block">KS</span>
               </div>
             </div>
           </motion.div>

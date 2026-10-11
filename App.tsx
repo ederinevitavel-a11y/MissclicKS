@@ -16,7 +16,7 @@ import { CrosshairIcon } from './components/NeonIcons';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('DADOS_STATS');
   const [dadosSubTab, setDadosSubTab] = useState<string>(TimeFrame.OVERVIEW);
-  const [ksSubTab, setKsSubTab] = useState<TimeFrame>(TimeFrame.DAILY);
+  const [ksSubTab, setKsSubTab] = useState<TimeFrame>(TimeFrame.MONTHLY);
   const [rawData, setRawData] = useState<RawDataRow[]>([]);
   const [rankedPlayers, setRankedPlayers] = useState<RankedPlayer[]>([]);
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
@@ -84,34 +84,66 @@ const App: React.FC = () => {
               return false;
             });
 
-            const mergedData = [...validSupabaseData];
-            
-            for (const row of sheetsData) {
-              const isAlreadyPresent = validSupabaseData.some(supaRow => {
-                if (supaRow.player.trim().toLowerCase() !== row.player.trim().toLowerCase()) return false;
-                if (supaRow.huntedName.trim().toLowerCase() !== row.huntedName.trim().toLowerCase()) return false;
+            // Sincronização robusta: o Google Sheets é a fonte oficial auditada e moderada (contém 'PT', status e aprovações).
+            // Preservamos todos os registros e pontuações do Google Sheets, enriquecendo com dados do Supabase.
+            const mergedData = sheetsData.map(sheetRow => {
+              const supaMatch = validSupabaseData.find(supaRow => {
+                if (supaRow.player.trim().toLowerCase() !== sheetRow.player.trim().toLowerCase()) return false;
+                if (supaRow.huntedName.trim().toLowerCase() !== sheetRow.huntedName.trim().toLowerCase()) return false;
                 
                 const respawnA = supaRow.respawn.trim().toLowerCase();
-                const respawnB = row.respawn.trim().toLowerCase();
+                const respawnB = sheetRow.respawn.trim().toLowerCase();
                 if (respawnA !== respawnB) return false;
 
                 const dateA = new Date(supaRow.date);
-                const dateB = new Date(row.date);
+                const dateB = new Date(sheetRow.date);
                 if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
-                  return supaRow.date === row.date;
+                  return supaRow.date === sheetRow.date;
                 }
 
-                const diffMs = Math.abs(dateA.getTime() - dateB.getTime());
-                return diffMs < 30 * 60 * 1000;
+                return Math.abs(dateA.getTime() - dateB.getTime()) < 30 * 60 * 1000;
+              });
+
+              if (supaMatch) {
+                // Se a linha da planilha ou a do Supabase indicou PT (ou comprovante/código indica PT), garante status e 2 pontos
+                const isPT = sheetRow.isPT || supaMatch.isPT || sheetRow.ks === 2 || supaMatch.ks === 2;
+                return {
+                  ...sheetRow,
+                  email: sheetRow.email || supaMatch.email,
+                  isPT,
+                  tempoKS: isPT ? 'PT' : (sheetRow.tempoKS || supaMatch.tempoKS),
+                  ks: isPT ? 2 : Math.max(sheetRow.ks, supaMatch.ks)
+                };
+              }
+              return sheetRow;
+            });
+            
+            // Adiciona registros recém-submetidos no Supabase que ainda não constam na planilha
+            for (const supaRow of validSupabaseData) {
+              const isAlreadyPresent = sheetsData.some(sheetRow => {
+                if (supaRow.player.trim().toLowerCase() !== sheetRow.player.trim().toLowerCase()) return false;
+                if (supaRow.huntedName.trim().toLowerCase() !== sheetRow.huntedName.trim().toLowerCase()) return false;
+                
+                const respawnA = supaRow.respawn.trim().toLowerCase();
+                const respawnB = sheetRow.respawn.trim().toLowerCase();
+                if (respawnA !== respawnB) return false;
+
+                const dateA = new Date(supaRow.date);
+                const dateB = new Date(sheetRow.date);
+                if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+                  return supaRow.date === sheetRow.date;
+                }
+
+                return Math.abs(dateA.getTime() - dateB.getTime()) < 30 * 60 * 1000;
               });
 
               if (!isAlreadyPresent) {
-                mergedData.push(row);
+                mergedData.push(supaRow);
               }
             }
             
             data = mergedData;
-            console.log(`Dados mesclados com sucesso! Total: ${data.length} registros (${validSupabaseData.length} do Supabase válidos, ${sheetsData.length - (data.length - validSupabaseData.length)} vindos do histórico do Google Sheets).`);
+            console.log(`Dados mesclados com sucesso! Total: ${data.length} registros (${sheetsData.length} da planilha oficial, enriquecidos e sincronizados com Supabase).`);
           } catch (sheetsErr) {
             console.error("Falha ao buscar dados históricos do Google Sheets, usando apenas os registros do Supabase:", sheetsErr);
             data = supabaseData;
@@ -142,9 +174,7 @@ const App: React.FC = () => {
       } else {
         setRawData(data);
         setOverviewData(getOverviewStats(data));
-        if (activeTab === 'KS_RANKING') {
-          setRankedPlayers(aggregateData(data, ksSubTab));
-        }
+        setRankedPlayers(aggregateData(data, ksSubTab));
       }
     } catch (err: any) {
       setError(err.message || "Erro de conexão ao banco de dados combatente.");
@@ -152,17 +182,15 @@ const App: React.FC = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [activeTab, ksSubTab]);
+  }, [ksSubTab]);
 
   useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
     if (rawData.length > 0) {
-      if (activeTab === 'KS_RANKING') {
-        setRankedPlayers(aggregateData(rawData, ksSubTab));
-      }
+      setRankedPlayers(aggregateData(rawData, ksSubTab));
     }
-  }, [activeTab, ksSubTab, rawData]);
+  }, [ksSubTab, rawData]);
 
   const tabs = [
     { id: 'DADOS_STATS', label: 'Intelligence', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -253,14 +281,15 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          <div className="hidden md:flex items-center justify-center p-2 bg-transparent border border-neon-blue/50 rounded-2xl w-14 h-14 shadow-[0_0_15px_rgba(0,243,255,0.15)]">
-            <div className="flex flex-col items-center justify-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.8)] translate-y-0.5">
-                <polyline points="18 15 12 9 6 15"></polyline>
-              </svg>
-              <div className="text-neon-blue font-display font-black text-xs tracking-widest leading-none drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]">MJR</div>
-            </div>
-          </div>
+            <button
+              onClick={() => loadData(true)}
+              disabled={isRefreshing || loading}
+              title="Atualizar dados da planilha"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-neon-blue/10 border border-white/10 hover:border-neon-blue/40 rounded-xl text-gray-300 hover:text-neon-blue transition-all text-xs font-mono"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-neon-blue' : ''}`} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </button>
         </div>
       </nav>
 
@@ -268,9 +297,10 @@ const App: React.FC = () => {
       <button 
         onClick={() => loadData(true)}
         disabled={isRefreshing || loading}
-        className="fixed bottom-6 left-6 z-50 p-3 bg-neon-dark/90 backdrop-blur-2xl border border-white/10 rounded-xl text-gray-400 hover:text-neon-blue hover:border-neon-blue transition-all active:scale-90 shadow-2xl"
+        title="Atualizar dados"
+        className="fixed bottom-6 left-6 z-50 p-3 bg-neon-dark/95 backdrop-blur-2xl border border-white/10 hover:border-neon-blue rounded-xl text-gray-400 hover:text-neon-blue transition-all active:scale-90 shadow-2xl flex items-center gap-2"
       >
-        <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-neon-blue' : ''}`} />
       </button>
 
 

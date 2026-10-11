@@ -44,21 +44,6 @@ const fetchWithProxy = async (url: string, timeout = 10000): Promise<string> => 
     console.warn("Falha no fetch direto do Google Sheets, tentando com proxy de CORS...", err);
   }
 
-  // 2. Fallback: corsproxy.io (Very fast and reliable)
-  try {
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`)}`;
-    console.log(`Tentando obter via corsproxy.io: ${proxyUrl}`);
-    const response = await fetchWithTimeout(proxyUrl, timeout);
-    if (response.ok) {
-      const text = await response.text();
-      if (text && text.trim().length > 10 && !text.includes('<html') && !text.includes('<!DOCTYPE')) {
-        console.log("Sucesso ao obter via corsproxy.io!");
-        return text;
-      }
-    }
-  } catch (err) {
-    console.warn("Falha ao obter via corsproxy.io:", err);
-  }
 
   // 3. Fallback: api.allorigins.win
   try {
@@ -83,30 +68,10 @@ export const fetchAndParseData = async (): Promise<RawDataRow[]> => {
   const url = getSheetUrl();
   console.log("URL da planilha sendo acessada:", url);
   try {
-    let text = "";
-    try {
-      console.log("Tentando fetch local...");
-      const response = await fetch(`./${GITHUB_CSV_NAME}?t=${Date.now()}`);
-      if (response.ok) {
-        console.log("Fetch local OK");
-        text = await response.text();
-        if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-          console.log("Arquivo local 'dados.csv' não encontrado ou é um HTML. Tentando Google Sheets com proxies...");
-          text = await fetchWithProxy(url);
-        }
-      } else {
-        console.log("Fetch local falhou, tentando Google Sheets com proxies...");
-        text = await fetchWithProxy(url);
-      }
-    } catch (localErr) {
-      console.log("Fetch local lançou erro, tentando obter do Google Sheets com proxies...", localErr);
-      text = await fetchWithProxy(url);
-    }
-    
+    const text = await fetchWithProxy(url);
     if (!text || text.trim().length < 10) {
       throw new Error("A planilha parece estar vazia ou o formato é inválido.");
     }
-    
     return parseCSV(text);
   } catch (error: any) {
     console.error("Erro detalhado de sincronização:", error);
@@ -138,9 +103,12 @@ const parseCSV = (csvText: string): RawDataRow[] => {
   const idxRespawn = headers.findIndex(h => h.includes('respawn') || h.includes('respaw') || h.includes('local') || h.includes('área'));
   const idxStatus = headers.findIndex(h => h.includes('status') || h.includes('situação'));
   const idxWeight = headers.findIndex(h => h.includes('peso') || h.includes('weight'));
+  // Coluna K - Tempo de KS (índice 10: A=0, B=1, ... K=10)
+  let idxTempo = headers.findIndex(h => h.includes('tempo de ks') || h === 'tempo' || (h.includes('tempo') && !h.includes('carimbo')));
+  if (idxTempo === -1) idxTempo = 10;
   
   console.log("Cabeçalhos detectados:", headers);
-  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus, idxWeight });
+  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus, idxWeight, idxTempo });
 
   const data: RawDataRow[] = [];
 
@@ -172,6 +140,13 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     const respawn = idxRespawn !== -1 ? cols[idxRespawn] : (cols[5] || 'Unknown Area');
     const usualTime = cols[12] || ''; 
 
+    // Coluna K: Tempo de KS (onde 'PT' significa Party com 2 pontos)
+    const rawCol10 = cols[10] ? cols[10].trim() : '';
+    const tempoKS = (cols[idxTempo] !== undefined && cols[idxTempo] !== '' ? cols[idxTempo].trim() : rawCol10);
+    const tempoUpper = tempoKS.toUpperCase();
+    const rawCol10Upper = rawCol10.toUpperCase();
+    const isPT = tempoUpper === 'PT' || tempoUpper.includes('PT') || rawCol10Upper === 'PT' || rawCol10Upper.includes('PT');
+
     let dateObj = parseFlexibleDate(dateStr) || new Date();
 
     // Lógica de pontos (Pesos de KS)
@@ -194,7 +169,7 @@ const parseCSV = (csvText: string): RawDataRow[] => {
         }
     }
 
-    // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 obrigatoriamente
+    // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 por padrão
     const cutoffDate = new Date('2026-07-09T00:00:00');
     
     const playerLower = name.toLowerCase();
@@ -214,6 +189,11 @@ const parseCSV = (csvText: string): RawDataRow[] => {
         points = 2;
     }
 
+    // REGRA DE PT: Na coluna K (Tempo de KS), 'PT' significa que aquele KS vale 2 pontos
+    if (isPT) {
+        points = 2;
+    }
+
     data.push({
       player: name.trim(),
       ks: points, 
@@ -221,7 +201,9 @@ const parseCSV = (csvText: string): RawDataRow[] => {
       playerRank: rank.trim(),
       respawn: respawn.trim(),
       huntedName: hunted.trim(),
-      usualTime: usualTime.trim()
+      usualTime: usualTime.trim(),
+      tempoKS: tempoKS,
+      isPT: isPT
     });
   }
   
@@ -478,9 +460,39 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
     };
 };
 
+// Auxiliar para obter o nome canônico mais frequente (ex: consolidar 'Elite bells' e 'Elite Bells', 'prezord' e 'Prezord')
+export const getCanonicalPlayerNameMap = (rawData: RawDataRow[]): Map<string, string> => {
+  const frequencyMap = new Map<string, Map<string, number>>();
+  rawData.forEach(r => {
+    const raw = (r.player || '').trim();
+    if (!raw) return;
+    const lower = raw.toLowerCase();
+    if (!frequencyMap.has(lower)) {
+      frequencyMap.set(lower, new Map());
+    }
+    const freq = frequencyMap.get(lower)!;
+    freq.set(raw, (freq.get(raw) || 0) + 1);
+  });
+
+  const canonicalMap = new Map<string, string>();
+  for (const [lower, freqs] of frequencyMap.entries()) {
+    let bestName = lower;
+    let maxCount = -1;
+    for (const [name, count] of freqs.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        bestName = name;
+      }
+    }
+    canonicalMap.set(lower, bestName);
+  }
+  return canonicalMap;
+};
+
 export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPlayer[] => {
   const now = new Date();
-  const playerMap = new Map<string, { totalKS: number; games: number; }>();
+  const canonicalMap = getCanonicalPlayerNameMap(rawData);
+  const playerMap = new Map<string, { totalKS: number; games: number; ptCount: number }>();
 
   rawData.filter(row => {
     const rowDate = new Date(row.date);
@@ -497,15 +509,29 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
     }
     return true;
   }).forEach(row => {
-    const trimmedPlayer = row.player.trim();
-    const current = playerMap.get(trimmedPlayer) || { totalKS: 0, games: 0 };
-    playerMap.set(trimmedPlayer, { totalKS: current.totalKS + row.ks, games: current.games + 1 });
+    const rawName = (row.player || '').trim();
+    if (!rawName) return;
+    const lower = rawName.toLowerCase();
+    const canonicalName = canonicalMap.get(lower) || rawName;
+    
+    const current = playerMap.get(canonicalName) || { totalKS: 0, games: 0, ptCount: 0 };
+    const isPT = row.isPT || (row.tempoKS && row.tempoKS.toUpperCase().includes('PT')) || row.ks === 2;
+    playerMap.set(canonicalName, { 
+      totalKS: current.totalKS + row.ks, 
+      games: current.games + 1,
+      ptCount: current.ptCount + (isPT ? 1 : 0)
+    });
   });
 
   return Array.from(playerMap.entries())
     .map(([name, stats]) => ({
-      name, totalKS: stats.totalKS, gamesPlayed: stats.games,
-      averageKS: 1, rank: 0, trend: 'same' as const
+      name, 
+      totalKS: stats.totalKS, 
+      gamesPlayed: stats.games,
+      ptCount: stats.ptCount,
+      averageKS: stats.games > 0 ? Number((stats.totalKS / stats.games).toFixed(2)) : 1, 
+      rank: 0, 
+      trend: 'same' as const
     }))
     .sort((a, b) => b.totalKS - a.totalKS)
     .map((p, i) => ({ ...p, rank: i + 1, trend: i < 3 ? 'up' as const : 'same' as const }));

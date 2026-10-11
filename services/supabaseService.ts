@@ -9,7 +9,28 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
   const dateStr = row.date || row.created_at || row.timestamp || new Date().toISOString();
   let points = typeof row.ks === 'number' ? row.ks : (Number(row.points || row.score || row.ks || 1));
 
-  // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 obrigatoriamente
+  let tempoKS = (row.tempo_ks || row.tempo || row.time_spent || row.tempoKS || '').toString().trim();
+  const idCode = (row.id_code || row.idCode || row.codigo || '').toString().trim();
+  const print1Name = (row.print1_name || '').toString().trim();
+  const print2Name = (row.print2_name || '').toString().trim();
+
+  const tempoUpper = tempoKS.toUpperCase();
+  const isPT = tempoUpper === 'PT' || 
+               tempoUpper.includes('PT') || 
+               row.is_pt === true || 
+               row.isPT === true || 
+               /\bpt\b/i.test(idCode) || 
+               idCode.toLowerCase().includes('pt') ||
+               /\bpt\b/i.test(print1Name) || 
+               print1Name.toLowerCase().includes(' em pt') ||
+               /\bpt\b/i.test(print2Name) ||
+               print2Name.toLowerCase().includes(' em pt');
+
+  if (isPT && !tempoKS) {
+    tempoKS = 'PT';
+  }
+
+  // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 por padrão
   const dateObj = new Date(dateStr);
   const cutoffDate = new Date('2026-07-09T00:00:00');
   if (!isNaN(dateObj.getTime()) && dateObj >= cutoffDate) {
@@ -24,15 +45,22 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     points = 1;
   }
 
+  // REGRA DE PT: Na coluna K (Tempo de KS), 'PT' significa pontuação 2 (vale dois pontos)
+  if (isPT) {
+    points = 2;
+  }
+
   return {
     player,
     ks: points,
     date: dateStr,
-    playerRank: row.playerRank || row.player_rank || row.rank || 'Member',
+    playerRank: row.playerRank || row.player_rank || row.rank || 'Newcommer',
     respawn: row.respawn || 'Unknown Area',
     huntedName,
     usualTime: row.usualTime || row.usual_time || row.time || '',
-    email: row.email || ''
+    email: row.email || '',
+    tempoKS,
+    isPT
   };
 };
 
@@ -146,6 +174,7 @@ export const insertKSEntryIntoSupabase = async (formData: {
   huntedName: string;
   respawn: string;
   idCode: string;
+  isPT?: boolean;
   prints: { name: string; url: string }[];
 }): Promise<void> => {
   if (!supabase) {
@@ -155,23 +184,40 @@ export const insertKSEntryIntoSupabase = async (formData: {
   const print1 = formData.prints[0];
   const print2 = formData.prints[1];
 
+  // Identifica se é PT pelo switch explícito ou pelo texto do idCode / nomes dos prints
+  const isPT = formData.isPT === true || 
+               /\bpt\b/i.test(formData.idCode) || 
+               formData.idCode.toLowerCase().includes('pt') ||
+               (print1?.name && (/\bpt\b/i.test(print1.name) || print1.name.toLowerCase().includes(' em pt'))) ||
+               (print2?.name && (/\bpt\b/i.test(print2.name) || print2.name.toLowerCase().includes(' em pt')));
+
+  // Garante que o idCode reflita o sufixo PT se marcado como PT e ainda não tiver
+  let finalIdCode = formData.idCode.trim();
+  if (isPT && !finalIdCode.toUpperCase().includes('PT')) {
+    finalIdCode = `${finalIdCode} PT`.trim();
+  }
+
   const record: any = {
     player: formData.charName,
     char_name: formData.charName,
-    ks: 1, // Default points
+    ks: isPT ? 2 : 1, // 2 pontos para PT, 1 ponto para KS solo
     date: new Date().toISOString(),
     player_rank: formData.rank,
     playerRank: formData.rank,
     respawn: formData.respawn,
     hunted_name: formData.huntedName,
     huntedName: formData.huntedName,
-    id_code: formData.idCode,
-    idCode: formData.idCode,
+    id_code: finalIdCode,
+    idCode: finalIdCode,
     email: formData.email,
+    tempo_ks: isPT ? 'PT' : '',
+    tempoKS: isPT ? 'PT' : '',
+    is_pt: isPT,
+    isPT: isPT,
     print1_url: print1?.url || '',
-    print1_name: print1?.name || '',
+    print1_name: print1?.name || (isPT ? `${finalIdCode} - Inicio (PT)` : ''),
     print2_url: print2?.url || '',
-    print2_name: print2?.name || '',
+    print2_name: print2?.name || (isPT ? `${finalIdCode} - Fim (PT)` : ''),
     print1Url: print1?.url || '',
     print1Name: print1?.name || '',
     print2Url: print2?.url || '',
