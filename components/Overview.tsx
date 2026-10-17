@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { OverviewData, RawDataRow } from '../types';
 import { SkullIcon } from './NeonIcons';
-import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
+import { fetchCharacterStatus, fetchWorldOnlinePlayers, CharacterStatus } from '../services/tibiaDataService';
 import { SuggestHuntedForm } from './SuggestHuntedForm';
 import { formatPlayerName } from '../services/csvService';
-import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan, Crosshair, Search } from 'lucide-react';
+import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan, Crosshair, Search, Radio } from 'lucide-react';
 
 interface OverviewProps {
   data: OverviewData;
@@ -30,9 +30,31 @@ export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntel
   const huntedIntel = data?.huntedIntel;
   const now = new Date();
 
-  const filteredTargets = (huntedIntel?.targets || []).filter(t => 
-    t.name.toLowerCase().includes(searchHunted.toLowerCase().trim())
-  );
+  // Hunteds ordenados: JOGADORES ONLINE PRIMEIRO, depois por quantidade de KS sofridos
+  const sortedTargets = useMemo(() => {
+    const list = (huntedIntel?.targets || []).filter(t => 
+      t.name.toLowerCase().includes(searchHunted.toLowerCase().trim())
+    );
+
+    return [...list].sort((a, b) => {
+      const aStatus = onlineStatus[a.name] || onlineStatus[a.name.toLowerCase()];
+      const bStatus = onlineStatus[b.name] || onlineStatus[b.name.toLowerCase()];
+      const aOnline = aStatus?.isOnline ? 1 : 0;
+      const bOnline = bStatus?.isOnline ? 1 : 0;
+      if (bOnline !== aOnline) {
+        return bOnline - aOnline; // ONLINE APARECE PRIMEIRO
+      }
+      return b.count - a.count; // Em caso de empate, ordena por mais KS
+    });
+  }, [huntedIntel?.targets, searchHunted, onlineStatus]);
+
+  // Contagem de hunteds online em tempo real
+  const onlineHuntedsCount = useMemo(() => {
+    return (huntedIntel?.targets || []).filter(t => {
+      const st = onlineStatus[t.name] || onlineStatus[t.name.toLowerCase()];
+      return st?.isOnline;
+    }).length;
+  }, [huntedIntel?.targets, onlineStatus]);
 
   // Lista de kszeiros únicos do KS ordenados por pontos
   const uniqueCombatants = useMemo(() => {
@@ -152,21 +174,45 @@ export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntel
 
   useEffect(() => {
     if (!huntedIntel?.targets) return;
-    const top6 = huntedIntel.targets.slice(0, 6);
+
+    let isMounted = true;
     const updateStatus = async () => {
-      const results = await Promise.all(
-        top6.map(async (target) => ({
-          name: target.name,
-          status: await fetchCharacterStatus(target.name)
-        }))
-      );
-      const newStatus: Record<string, CharacterStatus> = {};
-      results.forEach(r => { newStatus[r.name] = r.status; });
-      setOnlineStatus(newStatus);
+      try {
+        // 1. Busca lista global de jogadores online em Kalibra (1 requisição instantânea para todos)
+        const worldOnlineMap = await fetchWorldOnlinePlayers('Kalibra');
+        if (!isMounted) return;
+
+        // 2. Busca detalhes aprofundados (mortes recentes, vocação) dos alvos prioritários
+        const priorityTargets = huntedIntel.targets.slice(0, 15);
+        const detailedResults = await Promise.all(
+          priorityTargets.map(async (target) => ({
+            name: target.name,
+            status: await fetchCharacterStatus(target.name)
+          }))
+        );
+
+        if (!isMounted) return;
+
+        setOnlineStatus(prev => {
+          const merged: Record<string, CharacterStatus> = { ...worldOnlineMap, ...prev };
+          detailedResults.forEach(r => {
+            const current = merged[r.name] || merged[r.name.toLowerCase()] || {};
+            merged[r.name] = { ...current, ...r.status };
+            merged[r.name.toLowerCase()] = merged[r.name];
+          });
+          return merged;
+        });
+      } catch (err) {
+        console.warn("Erro ao atualizar status dos alvos:", err);
+      }
     };
+
     updateStatus();
-    const interval = setInterval(updateStatus, 60000);
-    return () => clearInterval(interval);
+    const interval = setInterval(updateStatus, 45000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [huntedIntel?.targets]);
 
   if (showSuggestForm) {
@@ -816,14 +862,27 @@ export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntel
         transition={{ delay: 0.9 }}
         className="cyber-card p-6 cyber-border border-red-500/20"
       >
-        <div className="flex items-center justify-between mb-8 h-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
             <ShieldAlert className="w-6 h-6 text-red-500 animate-pulse" />
-            <h3 className="text-xl font-display font-black text-white uppercase tracking-tighter">
-              Target Intelligence <span className="text-xs text-gray-500 normal-case tracking-normal font-normal">(Inteligência de Alvos)</span>
-            </h3>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-display font-black text-white uppercase tracking-tighter">
+                  Target Intelligence <span className="text-xs text-gray-500 normal-case tracking-normal font-normal">(Inteligência de Alvos)</span>
+                </h3>
+                {onlineHuntedsCount > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neon-green/10 border border-neon-green/30 text-neon-green font-bold uppercase tracking-wider flex items-center gap-1.5 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-neon-green" />
+                    {onlineHuntedsCount} Online
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] font-mono text-gray-400">
+                Alvos ordenados por prioridade tática: <span className="text-neon-green font-bold">Jogadores Online Primeiro</span>
+              </p>
+            </div>
           </div>
-          <div className="text-right hidden sm:block">
+          <div className="text-left sm:text-right hidden sm:block">
             <p className="text-xs font-mono text-red-500 uppercase tracking-widest flex items-center justify-end gap-1">
               <Scan className="w-3 h-3" /> Tactical Monitoring
             </p>
@@ -854,7 +913,7 @@ export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntel
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTargets.map((target, i) => {
+          {sortedTargets.map((target, i) => {
             const lastSeenDate = new Date(target.lastSeen);
             const diffDays = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60 * 60 * 24));
             const isOnline = onlineStatus[target.name]?.isOnline;

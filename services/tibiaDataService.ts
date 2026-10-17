@@ -199,3 +199,30 @@ export async function fetchCharacterStatus(name: string): Promise<CharacterStatu
     activeRequestsCount = Math.max(0, activeRequestsCount - 1);
   }
 }
+
+export async function fetchWorldOnlinePlayers(world: string = 'Kalibra'): Promise<Record<string, CharacterStatus>> {
+  try {
+    const response = await robustFetch(`https://api.tibiadata.com/v4/world/${encodeURIComponent(world)}`);
+    const data: any = await response.json();
+    const onlineList = data.world?.online_players || [];
+    const map: Record<string, CharacterStatus> = {};
+    if (Array.isArray(onlineList)) {
+      onlineList.forEach((p: any) => {
+        if (p?.name) {
+          const lower = p.name.trim().toLowerCase();
+          map[lower] = {
+            isOnline: true,
+            level: p.level,
+            vocation: p.vocation
+          };
+          // Also store exact name for easy lookup
+          map[p.name.trim()] = map[lower];
+        }
+      });
+    }
+    return map;
+  } catch (err) {
+    console.warn(`Error fetching online players for world ${world}:`, err);
+    return {};
+  }
+}
