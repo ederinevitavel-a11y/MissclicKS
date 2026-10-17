@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './services/firebaseAuth';
+import { FirebaseLoginCard } from './components/FirebaseLoginCard';
 import { Podium } from './components/Podium';
 import { RankingList } from './components/RankingList';
 import { Overview } from './components/Overview';
@@ -10,10 +13,12 @@ import { JoinKSTeamForm } from './components/JoinKSTeamForm';
 import { aggregateData, fetchAndParseData, getOverviewStats } from './services/csvService';
 import { fetchKSEntriesFromSupabase } from './services/supabaseService';
 import { RankedPlayer, RawDataRow, TimeFrame, OverviewData } from './types';
-import { RefreshCw, LayoutDashboard, Trophy, Shield, Terminal, Skull, Sword, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Trophy, Shield, Terminal, Skull, Sword, AlertTriangle, Loader2 } from 'lucide-react';
 import { CrosshairIcon } from './components/NeonIcons';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('DADOS_STATS');
   const [dadosSubTab, setDadosSubTab] = useState<string>(TimeFrame.OVERVIEW);
   const [ksSubTab, setKsSubTab] = useState<TimeFrame>(TimeFrame.MONTHLY);
@@ -25,6 +30,18 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<'SUPABASE' | 'CSV'>('CSV');
   const [supabaseWarning, setSupabaseWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!auth) {
+      setAuthLoading(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const loadData = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
@@ -177,7 +194,7 @@ const App: React.FC = () => {
         setRankedPlayers(aggregateData(data, ksSubTab));
       }
     } catch (err: any) {
-      setError(err.message || "Erro de conexão ao banco de dados combatente.");
+      setError(err.message || "Erro de conexão ao banco de dados dos Kszeiros.");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -208,6 +225,22 @@ const App: React.FC = () => {
     { id: TimeFrame.MONTHLY, label: 'Mensal' },
     { id: TimeFrame.ALL_TIME, label: 'Legends' },
   ];
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-neon-dark">
+        <Loader2 className="w-10 h-10 animate-spin text-neon-blue" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-neon-dark text-white p-4">
+        <FirebaseLoginCard onLoginSuccess={setUser} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-neon-dark text-white font-sans selection:bg-neon-blue selection:text-black overflow-x-hidden">
@@ -242,6 +275,7 @@ const App: React.FC = () => {
                     <span className="w-1 h-1 bg-neon-green rounded-full animate-ping" />
                     Online
                   </span>
+                  <button onClick={() => auth && signOut(auth)} className="text-red-500 hover:text-red-300 ml-4 font-bold">Logout</button>
                 </div>
               </div>
             </div>
@@ -280,30 +314,8 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
-
-            <button
-              onClick={() => loadData(true)}
-              disabled={isRefreshing || loading}
-              title="Atualizar dados da planilha"
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-neon-blue/10 border border-white/10 hover:border-neon-blue/40 rounded-xl text-gray-300 hover:text-neon-blue transition-all text-xs font-mono"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-neon-blue' : ''}`} />
-              <span className="hidden sm:inline">Atualizar</span>
-            </button>
         </div>
       </nav>
-
-      {/* Floating Refresh Button */}
-      <button 
-        onClick={() => loadData(true)}
-        disabled={isRefreshing || loading}
-        title="Atualizar dados"
-        className="fixed bottom-6 left-6 z-50 p-3 bg-neon-dark/95 backdrop-blur-2xl border border-white/10 hover:border-neon-blue rounded-xl text-gray-400 hover:text-neon-blue transition-all active:scale-90 shadow-2xl flex items-center gap-2"
-      >
-        <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-neon-blue' : ''}`} />
-      </button>
-
-
 
       <div className="relative z-10 container mx-auto px-4 py-8 pb-24 md:pb-8">
         {supabaseWarning && (
@@ -384,6 +396,7 @@ const App: React.FC = () => {
                   {dadosSubTab === TimeFrame.OVERVIEW ? (
                     overviewData && <Overview 
                       data={overviewData} 
+                      rawData={rawData}
                       onBackToIntelligence={() => {
                         setActiveTab('DADOS_STATS');
                         setDadosSubTab(TimeFrame.OVERVIEW);
@@ -402,7 +415,7 @@ const App: React.FC = () => {
                       }}
                     />
                   ) : dadosSubTab === 'REGISTRO_KS' ? (
-                    <KSRegistrationForm overviewData={overviewData} rawData={rawData} onBack={() => {
+                    <KSRegistrationForm overviewData={overviewData} rawData={rawData} userEmail={user?.email} onBack={() => {
                       setActiveTab('DADOS_STATS');
                       setDadosSubTab(TimeFrame.OVERVIEW);
                     }} />

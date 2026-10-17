@@ -28,6 +28,7 @@ export interface RankedPlayer {
   ptCount?: number; // Quantidade de KS em PT (2 pontos cada)
   averageKS: number;
   trend: 'up' | 'down' | 'same';
+  playerRank?: string;
 }
 
 export interface OverviewData {

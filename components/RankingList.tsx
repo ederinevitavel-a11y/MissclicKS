@@ -24,7 +24,7 @@ export const RankingList: React.FC<RankingListProps> = ({ players }) => {
       <div className="flex items-center justify-between px-6 py-2 text-[10px] font-display uppercase tracking-[0.2em] text-gray-500 border-b border-white/5">
         <div className="flex items-center gap-8">
           <span className="w-8 flex justify-center"><Hash className="w-3 h-3" /></span>
-          <span>Combatant</span>
+          <span>Nome</span>
         </div>
         <div className="flex items-center gap-6 sm:gap-10">
           <span className="w-12 text-center hidden sm:block"><TrendingUp className="w-3 h-3 mx-auto" /></span>
@@ -50,7 +50,9 @@ export const RankingList: React.FC<RankingListProps> = ({ players }) => {
                   {player.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm group-hover:text-white transition-colors">{player.name}</h4>
+                  <h4 className="font-bold text-sm group-hover:text-white transition-colors">
+                    {player.name}
+                  </h4>
                 </div>
               </div>
             </div>

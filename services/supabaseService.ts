@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { RawDataRow } from '../types';
+import { formatPlayerName } from './csvService';
 
 /**
  * Maps any Supabase row to the uniform RawDataRow format.
@@ -15,6 +16,7 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
   const print2Name = (row.print2_name || '').toString().trim();
 
   const tempoUpper = tempoKS.toUpperCase();
+  const idCodeUpper = idCode.toUpperCase();
   const isPT = tempoUpper === 'PT' || 
                tempoUpper.includes('PT') || 
                row.is_pt === true || 
@@ -26,8 +28,15 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
                /\bpt\b/i.test(print2Name) ||
                print2Name.toLowerCase().includes(' em pt');
 
+  const isTC = tempoUpper === 'TC' || tempoUpper.includes('TC') || /\btc\b/i.test(idCode) || idCodeUpper.endsWith('TC') || idCodeUpper.endsWith(' TC');
+  const isLC = tempoUpper === 'LC' || tempoUpper.includes('LC') || /\blc\b/i.test(idCode) || idCodeUpper.endsWith('LC') || idCodeUpper.endsWith(' LC');
+
   if (isPT && !tempoKS) {
     tempoKS = 'PT';
+  } else if (isTC && !tempoKS) {
+    tempoKS = 'TC';
+  } else if (isLC && !tempoKS) {
+    tempoKS = 'LC';
   }
 
   // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 por padrão
@@ -37,8 +46,10 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     points = 1;
   }
 
-  const player = (row.player || row.char_name || row.charName || row.name || '').trim();
-  const huntedName = (row.huntedName || row.hunted_name || row.hunted_target || '').trim();
+  const rawPlayer = (row.player || row.char_name || row.charName || row.name || '').trim();
+  const rawHunted = (row.huntedName || row.hunted_name || row.hunted_target || '').trim();
+  const player = formatPlayerName(rawPlayer);
+  const huntedName = formatPlayerName(rawHunted);
 
   // Se o jogador ou alvo for Capistrano, o peso deve ser sempre 1 (conforme regra do usuário)
   if (player.toLowerCase().includes('capistrano') || huntedName.toLowerCase().includes('capistrano')) {
@@ -175,6 +186,8 @@ export const insertKSEntryIntoSupabase = async (formData: {
   respawn: string;
   idCode: string;
   isPT?: boolean;
+  tempoKS?: string;
+  modalidadeKS?: 'NORMAL' | 'TC' | 'LC' | 'PT';
   prints: { name: string; url: string }[];
 }): Promise<void> => {
   if (!supabase) {
@@ -184,40 +197,65 @@ export const insertKSEntryIntoSupabase = async (formData: {
   const print1 = formData.prints[0];
   const print2 = formData.prints[1];
 
-  // Identifica se é PT pelo switch explícito ou pelo texto do idCode / nomes dos prints
-  const isPT = formData.isPT === true || 
+  let modalidade = formData.modalidadeKS;
+  if (!modalidade) {
+    if (formData.isPT) modalidade = 'PT';
+    else if (/\bpt\b/i.test(formData.idCode)) modalidade = 'PT';
+    else if (/\btc\b/i.test(formData.idCode) || formData.idCode.toUpperCase().endsWith('TC')) modalidade = 'TC';
+    else if (/\blc\b/i.test(formData.idCode) || formData.idCode.toUpperCase().endsWith('LC')) modalidade = 'LC';
+    else modalidade = 'NORMAL';
+  }
+
+  // Identifica se é PT
+  const isPT = modalidade === 'PT' ||
+               formData.isPT === true || 
                /\bpt\b/i.test(formData.idCode) || 
                formData.idCode.toLowerCase().includes('pt') ||
                (print1?.name && (/\bpt\b/i.test(print1.name) || print1.name.toLowerCase().includes(' em pt'))) ||
                (print2?.name && (/\bpt\b/i.test(print2.name) || print2.name.toLowerCase().includes(' em pt')));
 
-  // Garante que o idCode reflita o sufixo PT se marcado como PT e ainda não tiver
+  // Garante que o idCode reflita o sufixo apropriado
   let finalIdCode = formData.idCode.trim();
-  if (isPT && !finalIdCode.toUpperCase().includes('PT')) {
-    finalIdCode = `${finalIdCode} PT`.trim();
+  let tempoKSCalculado = formData.tempoKS || '';
+
+  if (isPT) {
+    tempoKSCalculado = 'PT';
+    if (!finalIdCode.toUpperCase().includes('PT')) {
+      finalIdCode = `${finalIdCode} PT`.trim();
+    }
+  } else if (modalidade === 'TC' || /\btc\b/i.test(finalIdCode) || finalIdCode.toUpperCase().endsWith('TC')) {
+    tempoKSCalculado = 'TC';
+    if (!finalIdCode.toUpperCase().includes('TC')) {
+      finalIdCode = `${finalIdCode} TC`.trim();
+    }
+  } else if (modalidade === 'LC' || /\blc\b/i.test(finalIdCode) || finalIdCode.toUpperCase().endsWith('LC')) {
+    tempoKSCalculado = 'LC';
+    if (!finalIdCode.toUpperCase().includes('LC')) {
+      finalIdCode = `${finalIdCode} LC`.trim();
+    }
   }
 
   const record: any = {
-    player: formData.charName,
-    char_name: formData.charName,
-    ks: isPT ? 2 : 1, // 2 pontos para PT, 1 ponto para KS solo
+    player: formatPlayerName(formData.charName),
+    char_name: formatPlayerName(formData.charName),
+    ks: isPT ? 2 : 1, // 2 pontos para PT, 1 ponto para KS solo/TC/LC
     date: new Date().toISOString(),
     player_rank: formData.rank,
     playerRank: formData.rank,
     respawn: formData.respawn,
-    hunted_name: formData.huntedName,
-    huntedName: formData.huntedName,
+    hunted_name: formatPlayerName(formData.huntedName),
+    huntedName: formatPlayerName(formData.huntedName),
     id_code: finalIdCode,
     idCode: finalIdCode,
     email: formData.email,
-    tempo_ks: isPT ? 'PT' : '',
-    tempoKS: isPT ? 'PT' : '',
+    tempo_ks: tempoKSCalculado,
+    tempoKS: tempoKSCalculado,
     is_pt: isPT,
     isPT: isPT,
     print1_url: print1?.url || '',
-    print1_name: print1?.name || (isPT ? `${finalIdCode} - Inicio (PT)` : ''),
+    print1_name: print1?.name || (isPT ? `${finalIdCode} - Inicio (PT)` : `${finalIdCode} - Inicio`),
     print2_url: print2?.url || '',
-    print2_name: print2?.name || (isPT ? `${finalIdCode} - Fim (PT)` : ''),
+    print2_name: print2?.name || (isPT ? `${finalIdCode} - Fim (PT)` : `${finalIdCode} - Fim`),
     print1Url: print1?.url || '',
     print1Name: print1?.name || '',
     print2Url: print2?.url || '',

@@ -1,25 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key, Clock, ShieldAlert, LogIn, Loader2, Users } from 'lucide-react';
+import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key, Clock, ShieldAlert, LogIn, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { insertKSEntryIntoSupabase, fetchBlackListFromSupabase } from '../services/supabaseService';
-import { fetchAllowedEmailsFromCSV, KNOWN_AUTHORIZED_EMAILS } from '../services/csvService';
+import { fetchAllowedEmailsFromCSV, KNOWN_AUTHORIZED_EMAILS, ADMIN_EMAILS } from '../services/csvService';
 
 interface KSRegistrationFormProps {
   onSuccess?: () => void;
   overviewData?: any;
   rawData?: any[];
   onBack?: () => void;
+  userEmail?: string;
 }
 
-export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData, rawData, onBack }) => {
+export type KSModalidade = 'SOLO' | 'TC' | 'LC' | 'PT';
+
+export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData, rawData, onBack, userEmail }) => {
   const [formData, setFormData] = useState({
-    email: '',
+    email: userEmail || '',
     charName: '',
     rank: '',
     huntedName: '',
     respawn: '',
     idCode: '',
+    modalidadeKS: 'SOLO' as KSModalidade,
     isPT: false
   });
   const [files, setFiles] = useState<(File | null)[]>([null, null]);
@@ -116,14 +120,15 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
       setLoadingEmails(true);
       try {
         const emails = await fetchAllowedEmailsFromCSV();
-        const formattedEmails = emails.map((e: string) => e.trim().toLowerCase());
-        if (!formattedEmails.includes('ederinevitavel@gmail.com')) {
-          formattedEmails.push('ederinevitavel@gmail.com');
-        }
+        const combined = Array.from(new Set([...emails, ...ADMIN_EMAILS]));
+        const formattedEmails = combined
+          .map((e: string) => e.trim().toLowerCase())
+          .filter((e: string) => e !== 'ederinevitavel@gmail.com');
         setAllowedEmails(formattedEmails);
       } catch (err) {
         console.error("Falha ao carregar e-mails autorizados:", err);
-        setAllowedEmails(KNOWN_AUTHORIZED_EMAILS.map(e => e.trim().toLowerCase()));
+        const fallback = Array.from(new Set([...KNOWN_AUTHORIZED_EMAILS, ...ADMIN_EMAILS]));
+        setAllowedEmails(fallback.map(e => e.trim().toLowerCase()).filter(e => e !== 'ederinevitavel@gmail.com'));
       } finally {
         setLoadingEmails(false);
       }
@@ -147,9 +152,29 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
     return () => clearInterval(interval);
   }, []);
 
+
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const target = e.target as HTMLInputElement;
     const value = target.type === 'checkbox' ? target.checked : target.value;
+    
+    // Se o usuário digitou diretamente no idCode, detecta se colocou TC, LC ou PT ao final
+    if (target.name === 'idCode' && typeof value === 'string') {
+      const upper = value.trim().toUpperCase();
+      let detectedMode: KSModalidade = formData.modalidadeKS;
+      if (upper.endsWith(' PT') || upper.endsWith('PT')) detectedMode = 'PT';
+      else if (upper.endsWith(' TC') || upper.endsWith('TC')) detectedMode = 'TC';
+      else if (upper.endsWith(' LC') || upper.endsWith('LC')) detectedMode = 'LC';
+
+      setFormData(prev => ({
+        ...prev,
+        idCode: value,
+        modalidadeKS: detectedMode,
+        isPT: detectedMode === 'PT'
+      }));
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [target.name]: value }));
   };
 
@@ -183,6 +208,15 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
     const emailLower = formData.email.trim().toLowerCase();
     if (!emailLower || !emailLower.includes('@')) {
       setStatus({ type: 'error', message: 'Acesso negado: Por favor, insira um endereço de e-mail válido.' });
+      return;
+    }
+
+    // Bloqueio explícito de e-mails inibidos
+    if (emailLower === 'ederinevitavel@gmail.com') {
+      setStatus({ 
+        type: 'error', 
+        message: 'Acesso bloqueado: O e-mail ederinevitavel@gmail.com está inibido de enviar novos registros de KS.' 
+      });
       return;
     }
 
@@ -261,9 +295,21 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
 
       const validPrints = printsData.filter((p): p is { name: string; url: string } => p !== null);
 
+      // Determina a tag da Coluna K (Tempo de KS)
+      let tempoKSTag = '';
+      if (formData.modalidadeKS === 'PT' || formData.isPT) {
+        tempoKSTag = 'PT';
+      } else if (formData.modalidadeKS === 'TC') {
+        tempoKSTag = 'TC';
+      } else if (formData.modalidadeKS === 'LC') {
+        tempoKSTag = 'LC';
+      }
+
       // Save directly to Supabase Table (Primary Database)
       await insertKSEntryIntoSupabase({
         ...formData,
+        tempoKS: tempoKSTag,
+        modalidadeKS: formData.modalidadeKS,
         prints: validPrints
       });
 
@@ -271,22 +317,24 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
       const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
       if (scriptUrl) {
         try {
-          const formDataToSend = new FormData();
-          Object.entries(formData).forEach(([key, value]) => formDataToSend.append(key, String(value)));
-          if (formData.isPT) {
-            formDataToSend.append('tempoKS', 'PT');
-            formDataToSend.append('tempo_ks', 'PT');
-            formDataToSend.append('isPT', 'true');
-          }
-          formDataToSend.append('print1', validPrints[0]?.url || '');
-          formDataToSend.append('print2', validPrints[1]?.url || '');
-          formDataToSend.append('timestamp', new Date().toLocaleString('pt-BR'));
-          formDataToSend.append('sheetName', 'Respostas ao formulário 2');
+          const params = new URLSearchParams();
+          Object.entries(formData).forEach(([key, value]) => params.append(key, String(value)));
+          params.append('tempoKS', tempoKSTag);
+          params.append('tempo_ks', tempoKSTag);
+          params.append('tempo', tempoKSTag);
+          params.append('colunaK', tempoKSTag);
+          params.append('modalidade', formData.modalidadeKS);
+          params.append('print1', validPrints[0]?.url || '');
+          params.append('print2', validPrints[1]?.url || '');
+          params.append('timestamp', new Date().toLocaleString('pt-BR'));
+          params.append('sheetName', 'Respostas ao formulário 2');
 
+          // Usamos Content-Type text/plain com urlencoded para evitar bloqueio de preflight CORS pelo browser e garantir que o Google Apps Script popule e.parameter
           await fetch(scriptUrl, {
             method: 'POST',
             mode: 'no-cors',
-            body: formDataToSend,
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: params.toString(),
           });
         } catch (sheetErr) {
           console.warn("Falha ao salvar cópia de backup na planilha:", sheetErr);
@@ -394,7 +442,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             value={formData.email}
             onChange={handleChange}
             placeholder="operador@sistema.com"
-            disabled={cooldown.active}
+            disabled={true}
           />
           <InputGroup 
             icon={<User className="w-4 h-4" />}
@@ -402,7 +450,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             name="charName"
             value={formData.charName}
             onChange={handleChange}
-            placeholder="Digite o nome do combatente"
+            placeholder="Digite o nome do kszeiro"
             disabled={cooldown.active}
           />
         </div>
@@ -478,35 +526,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           />
         </div>
 
-        {/* Modalidade de KS: Solo (1 KS) vs PT / Party (2 KS) */}
-        <div className="p-4 bg-white/5 border border-white/10 rounded-xl hover:border-neon-blue/30 transition-all">
-          <label className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg border transition-all ${formData.isPT ? 'bg-neon-blue/20 border-neon-blue text-neon-blue shadow-[0_0_10px_rgba(0,240,255,0.3)]' : 'bg-black/40 border-white/10 text-gray-500'}`}>
-                <Users className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-display font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                  Participação em PT (Party)
-                  <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold ${formData.isPT ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/40' : 'bg-white/10 text-gray-400'}`}>
-                    {formData.isPT ? 'VALE 2 PONTOS DE KS' : 'VALE 1 PONTO (SOLO)'}
-                  </span>
-                </p>
-                <p className="text-[10px] text-gray-400 font-mono mt-0.5">
-                  Marque esta opção se o KS foi realizado em grupo/party (a pontuação é contabilizada como 2 KS automaticamente).
-                </p>
-              </div>
-            </div>
-            <input 
-              type="checkbox"
-              name="isPT"
-              checked={formData.isPT}
-              onChange={handleChange}
-              disabled={cooldown.active}
-              className="w-5 h-5 rounded border-white/20 bg-black/40 text-neon-blue focus:ring-neon-blue focus:ring-offset-0 cursor-pointer disabled:opacity-40"
-            />
-          </label>
-        </div>
+
 
         {status.message && (
           <motion.div 

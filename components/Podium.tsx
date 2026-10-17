@@ -70,19 +70,19 @@ const PodiumStep: React.FC<{ player: RankedPlayer; place: 1 | 2 | 3 }> = ({ play
       {/* Base */}
       <motion.div 
         initial={{ height: 0 }}
-        animate={{ height: isFirst ? 180 : 140 }}
+        animate={{ height: isFirst ? 215 : 180 }}
         transition={{ delay: 0.5, duration: 1 }}
-        className={`w-full max-w-[140px] ${style.bg} border-x border-t ${style.border} rounded-t-2xl mt-[-20px] flex flex-col items-center pt-12 pb-4 px-2 relative overflow-hidden`}
+        className={`w-full max-w-[140px] ${style.bg} border-x border-t ${style.border} rounded-t-2xl mt-[-20px] flex flex-col items-center justify-between pt-10 pb-4 px-2 relative overflow-hidden`}
       >
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(0,0,0,0.5))] pointer-events-none" />
         
         <div className="relative z-10 text-center w-full px-2">
-          <h3 className={`font-display font-bold text-xs uppercase tracking-tighter line-clamp-2 ${isFirst ? 'text-white' : 'text-gray-400'}`}>
+          <h3 className={`font-display font-bold text-xs uppercase tracking-tighter line-clamp-2 ${isFirst ? 'text-white' : 'text-gray-300'}`}>
             {player.name}
           </h3>
-          <div className="mt-4">
-            <p className="text-[8px] text-gray-500 uppercase font-mono tracking-widest">Total KS</p>
-            <p className={`font-display font-black ${isFirst ? 'text-3xl' : 'text-2xl'} ${style.text}`}>
+          <div className="mt-3">
+            <p className="text-[8px] text-gray-400 uppercase font-mono tracking-widest">Total KS</p>
+            <p className={`font-display font-black leading-none my-1 ${isFirst ? 'text-3xl' : 'text-2xl'} ${style.text}`}>
               {player.totalKS}
             </p>
             <span className="text-[10px] font-mono text-gray-400 block">KS</span>

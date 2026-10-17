@@ -1,6 +1,29 @@
 
 import { RawDataRow, RankedPlayer, TimeFrame, OverviewData } from '../types';
 
+/**
+ * Formata o nome do personagem com a inicial de cada palavra em maiúscula
+ * e as demais em minúscula (Title Case padrão Tibia/Missclicks).
+ * Ex: 'renato winchester' -> 'Renato Winchester'
+ *     'ELOYZORD' -> 'Eloyzord'
+ *     'prezord' -> 'Prezord'
+ *     'mIRAJANE wANG' -> 'Mirajane Wang'
+ */
+export const formatPlayerName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map(word => {
+      if (!word) return '';
+      // Trata palavras especiais como hífen (ex: "Kokiris - Monocco")
+      if (word === '-') return '-';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+};
+
 const GITHUB_CSV_NAME = 'dados.csv';
 const DEFAULT_FALLBACK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?output=csv';
 
@@ -116,10 +139,16 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     const cols = parseCSVLine(lines[i], delimiter);
     if (cols.length < 2) continue;
 
-    // Filtro de Status (Apenas Aprovados)
-    if (idxStatus !== -1 && cols[idxStatus]) {
-      const status = cols[idxStatus].toLowerCase();
-      if (status.includes('negado') || status.includes('rejeitado')) {
+    // Filtro estrito de Status: Coluna H precisa conter explicitamente 'aprovado'. Se estiver em branco, negado ou qualquer outra coisa, o KS não é considerado.
+    if (idxStatus !== -1) {
+      const status = cols[idxStatus] ? cols[idxStatus].toLowerCase().trim() : '';
+      if (!status.includes('aprovado')) {
+        continue;
+      }
+    } else {
+      // Se a coluna de status não foi encontrada, por segurança verifica se a linha contém 'aprovado'
+      const rowText = lines[i].toLowerCase();
+      if (!rowText.includes('aprovado')) {
         continue;
       }
     }
@@ -149,44 +178,21 @@ const parseCSV = (csvText: string): RawDataRow[] => {
 
     let dateObj = parseFlexibleDate(dateStr) || new Date();
 
-    // Lógica de pontos (Pesos de KS)
+    // REGRA RESTRITA: Só vale 2 KS se explicitamente indicado 'PT' ou peso 2 na Coluna K / peso. Caso contrário, vale 1 KS.
     let points = 1;
     
-    // Primeiro tenta ler da coluna de Peso se detectada
+    // Tenta ler da coluna de Peso se detectada
     if (idxWeight !== -1 && cols[idxWeight]) {
         const weightStr = cols[idxWeight].replace(',', '.').trim();
         const weightVal = parseFloat(weightStr);
-        if (!isNaN(weightVal)) {
-            points = weightVal;
-        }
-    } else {
-        // Fallback para busca no texto da linha
-        const rowText = lines[i].toLowerCase();
-        if (rowText.includes('peso 0.5') || rowText.includes('peso 0,5')) {
-            points = 0.5;
-        } else if (rowText.includes('peso 02') || rowText.includes('peso 2')) {
+        if (weightVal === 2 || weightVal === 2.0) {
             points = 2;
         }
-    }
-
-    // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 por padrão
-    const cutoffDate = new Date('2026-07-09T00:00:00');
-    
-    const playerLower = name.toLowerCase();
-    const huntedLower = hunted.toLowerCase();
-    const isSpecialPlayer = 
-        playerLower.includes('leandrin invencivel') || 
-        playerLower.includes('leandrin predator') || 
-        playerLower.includes('capistrano') ||
-        huntedLower.includes('leandrin invencivel') || 
-        huntedLower.includes('leandrin predator') || 
-        huntedLower.includes('capistrano');
-
-    if (dateObj >= cutoffDate) {
-        points = 1;
-    } else if (isSpecialPlayer) {
-        // Regra automática para registros com data anterior a 09/07/2026
-        points = 2;
+    } else {
+        const rowText = lines[i].toLowerCase();
+        if (rowText.includes('peso 02') || rowText.includes('peso 2')) {
+            points = 2;
+        }
     }
 
     // REGRA DE PT: Na coluna K (Tempo de KS), 'PT' significa que aquele KS vale 2 pontos
@@ -194,13 +200,16 @@ const parseCSV = (csvText: string): RawDataRow[] => {
         points = 2;
     }
 
+    const formattedPlayer = formatPlayerName(name);
+    const formattedHunted = formatPlayerName(hunted);
+
     data.push({
-      player: name.trim(),
+      player: formattedPlayer,
       ks: points, 
       date: dateObj.toISOString(),
       playerRank: rank.trim(),
       respawn: respawn.trim(),
-      huntedName: hunted.trim(),
+      huntedName: formattedHunted,
       usualTime: usualTime.trim(),
       tempoKS: tempoKS,
       isPT: isPT
@@ -283,8 +292,8 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
         const date = new Date(row.date);
         if (isNaN(date.getTime())) return;
         
-        const trimmedPlayer = row.player.trim();
-        const trimmedHunted = row.huntedName ? row.huntedName.trim() : '';
+        const trimmedPlayer = formatPlayerName(row.player);
+        const trimmedHunted = row.huntedName ? formatPlayerName(row.huntedName) : '';
 
         totalKills += row.ks;
         if (row.ks > 1) heavyKills++; else normalKills++;
@@ -395,7 +404,7 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
             };
         })
         .sort((a, b) => b.count - a.count)
-        .slice(0, 15);
+        .slice(0, 100);
 
     // Calculate Activity Streaks
     const activityStreaks = Array.from(playerActivityMap.entries()).map(([player, datesSet]) => {
@@ -460,39 +469,24 @@ export const getOverviewStats = (rawData: RawDataRow[]): OverviewData => {
     };
 };
 
-// Auxiliar para obter o nome canônico mais frequente (ex: consolidar 'Elite bells' e 'Elite Bells', 'prezord' e 'Prezord')
+// Auxiliar para obter o nome canônico padronizado com iniciais maiúsculas (ex: 'Elite Bells', 'Prezord', 'Renato Winchester')
 export const getCanonicalPlayerNameMap = (rawData: RawDataRow[]): Map<string, string> => {
-  const frequencyMap = new Map<string, Map<string, number>>();
+  const canonicalMap = new Map<string, string>();
   rawData.forEach(r => {
     const raw = (r.player || '').trim();
     if (!raw) return;
     const lower = raw.toLowerCase();
-    if (!frequencyMap.has(lower)) {
-      frequencyMap.set(lower, new Map());
+    if (!canonicalMap.has(lower)) {
+      canonicalMap.set(lower, formatPlayerName(raw));
     }
-    const freq = frequencyMap.get(lower)!;
-    freq.set(raw, (freq.get(raw) || 0) + 1);
   });
-
-  const canonicalMap = new Map<string, string>();
-  for (const [lower, freqs] of frequencyMap.entries()) {
-    let bestName = lower;
-    let maxCount = -1;
-    for (const [name, count] of freqs.entries()) {
-      if (count > maxCount) {
-        maxCount = count;
-        bestName = name;
-      }
-    }
-    canonicalMap.set(lower, bestName);
-  }
   return canonicalMap;
 };
 
 export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPlayer[] => {
   const now = new Date();
   const canonicalMap = getCanonicalPlayerNameMap(rawData);
-  const playerMap = new Map<string, { totalKS: number; games: number; ptCount: number }>();
+  const playerMap = new Map<string, { totalKS: number; games: number; ptCount: number; playerRank: string }>();
 
   rawData.filter(row => {
     const rowDate = new Date(row.date);
@@ -512,18 +506,20 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
     const rawName = (row.player || '').trim();
     if (!rawName) return;
     const lower = rawName.toLowerCase();
-    const canonicalName = canonicalMap.get(lower) || rawName;
+    const canonicalName = canonicalMap.get(lower) || formatPlayerName(rawName);
+    const pRank = row.playerRank ? row.playerRank.trim() : 'Sem Rank';
     
-    const current = playerMap.get(canonicalName) || { totalKS: 0, games: 0, ptCount: 0 };
+    const current = playerMap.get(canonicalName) || { totalKS: 0, games: 0, ptCount: 0, playerRank: pRank };
     const isPT = row.isPT || (row.tempoKS && row.tempoKS.toUpperCase().includes('PT')) || row.ks === 2;
     playerMap.set(canonicalName, { 
       totalKS: current.totalKS + row.ks, 
       games: current.games + 1,
-      ptCount: current.ptCount + (isPT ? 1 : 0)
+      ptCount: current.ptCount + (isPT ? 1 : 0),
+      playerRank: pRank !== 'Sem Rank' ? pRank : current.playerRank
     });
   });
 
-  return Array.from(playerMap.entries())
+  const list = Array.from(playerMap.entries())
     .map(([name, stats]) => ({
       name, 
       totalKS: stats.totalKS, 
@@ -531,14 +527,26 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
       ptCount: stats.ptCount,
       averageKS: stats.games > 0 ? Number((stats.totalKS / stats.games).toFixed(2)) : 1, 
       rank: 0, 
-      trend: 'same' as const
-    }))
-    .sort((a, b) => b.totalKS - a.totalKS)
-    .map((p, i) => ({ ...p, rank: i + 1, trend: i < 3 ? 'up' as const : 'same' as const }));
+      trend: 'same' as const,
+      playerRank: stats.playerRank
+    }));
+
+  list.sort((a, b) => b.totalKS - a.totalKS);
+
+  return list.map((p, i) => ({ ...p, rank: i + 1, trend: i < 3 ? 'up' as const : 'same' as const }));
 };
 
-export const KNOWN_AUTHORIZED_EMAILS: string[] = [
+export const ADMIN_EMAILS: string[] = [
   'ederinevitavel@gmail.com',
+  'eloltronica@gmail.com',
+  'hrdomenichelli@gmail.com',
+  'prispituska@gmail.com',
+  'moratoarthur95@gmail.com',
+  'zemazzi@gmail.com'
+];
+
+export const KNOWN_AUTHORIZED_EMAILS: string[] = [
+  ...ADMIN_EMAILS,
   'wah-oliveira@hotmail.com',
   'joaopedromarinelli@hotmail.com',
   'maikonfoz.25@gmail.com',

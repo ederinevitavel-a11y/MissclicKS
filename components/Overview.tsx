@@ -1,22 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { OverviewData } from '../types';
+import { OverviewData, RawDataRow } from '../types';
 import { SkullIcon } from './NeonIcons';
 import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
 import { SuggestHuntedForm } from './SuggestHuntedForm';
-import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan } from 'lucide-react';
+import { formatPlayerName } from '../services/csvService';
+import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan, Crosshair, Search } from 'lucide-react';
 
 interface OverviewProps {
   data: OverviewData;
+  rawData?: RawDataRow[];
   onBackToIntelligence: () => void;
   onNewEntry: () => void;
   onJoinTeam: () => void;
   onOpenBlackList: () => void;
 }
 
-export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, onNewEntry, onJoinTeam, onOpenBlackList }) => {
+export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntelligence, onNewEntry, onJoinTeam, onOpenBlackList }) => {
   const [onlineStatus, setOnlineStatus] = useState<Record<string, CharacterStatus>>({});
   const [showSuggestForm, setShowSuggestForm] = useState(false);
+  const [searchHunted, setSearchHunted] = useState('');
 
   const weeklyDistribution = data?.weeklyDistribution || [];
   const maxWeekly = Math.max(...(weeklyDistribution.length > 0 ? weeklyDistribution : [1]), 1);
@@ -26,6 +29,126 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
   const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const huntedIntel = data?.huntedIntel;
   const now = new Date();
+
+  const filteredTargets = (huntedIntel?.targets || []).filter(t => 
+    t.name.toLowerCase().includes(searchHunted.toLowerCase().trim())
+  );
+
+  // Lista de kszeiros únicos do KS ordenados por pontos
+  const uniqueCombatants = useMemo(() => {
+    if (!rawData || rawData.length === 0) return [];
+    const map = new Map<string, { name: string; totalKS: number; count: number }>();
+    rawData.forEach(r => {
+      const p = (r.player || '').trim();
+      if (!p) return;
+      const formatted = formatPlayerName(p);
+      const key = formatted.toLowerCase();
+      const curr = map.get(key) || { name: formatted, totalKS: 0, count: 0 };
+      curr.totalKS += r.ks || 1;
+      curr.count += 1;
+      map.set(key, curr);
+    });
+    return Array.from(map.values()).sort((a, b) => b.totalKS - a.totalKS);
+  }, [rawData]);
+
+  const [selectedCombatant, setSelectedCombatant] = useState<string>('');
+  const [combatantSearchQuery, setCombatantSearchQuery] = useState<string>('');
+
+  // Define o kszeiro padrão inicial
+  useEffect(() => {
+    if (!selectedCombatant && uniqueCombatants.length > 0) {
+      setSelectedCombatant(uniqueCombatants[0].name);
+    }
+  }, [uniqueCombatants, selectedCombatant]);
+
+  // Lista filtrada para sugestões / busca
+  const filteredCombatantList = useMemo(() => {
+    if (!combatantSearchQuery.trim()) return uniqueCombatants;
+    const query = combatantSearchQuery.toLowerCase().trim();
+    return uniqueCombatants.filter(c => c.name.toLowerCase().includes(query));
+  }, [uniqueCombatants, combatantSearchQuery]);
+
+  // Estatísticas completas do kszeiro selecionado
+  const combatantDetails = useMemo(() => {
+    const targetPlayer = selectedCombatant || (uniqueCombatants[0]?.name ?? '');
+    if (!targetPlayer || !rawData || rawData.length === 0) return null;
+
+    const targetLower = targetPlayer.toLowerCase().trim();
+    const rows = rawData.filter(r => (r.player || '').trim().toLowerCase() === targetLower);
+    if (rows.length === 0) return null;
+
+    let totalKS = 0;
+    let ptKSCount = 0;
+    let soloKSCount = 0;
+    const huntedMap = new Map<string, number>();
+    const respawnMap = new Map<string, number>();
+    let latestActivity: Date | null = null;
+    const hourDist = new Array(24).fill(0);
+
+    rows.forEach(r => {
+      const points = r.ks || 1;
+      totalKS += points;
+
+      const isPT = r.isPT || (r.tempoKS && r.tempoKS.toUpperCase().includes('PT')) || points === 2;
+      if (isPT) ptKSCount += points; else soloKSCount += points;
+
+      // Alvo / Hunted
+      const hName = (r.huntedName || '').trim();
+      if (hName) {
+        const cleanH = formatPlayerName(hName);
+        huntedMap.set(cleanH, (huntedMap.get(cleanH) || 0) + points);
+      }
+
+      // Respawn
+      const rName = (r.respawn || '').trim();
+      if (rName) {
+        respawnMap.set(rName, (respawnMap.get(rName) || 0) + points);
+      }
+
+      // Data de atividade
+      const d = new Date(r.date);
+      if (!isNaN(d.getTime())) {
+        if (!latestActivity || d > latestActivity) latestActivity = d;
+        hourDist[d.getHours()] += points;
+      }
+    });
+
+    const topHunteds = Array.from(huntedMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+
+    const topRespawns = Array.from(respawnMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+
+    let peakHour = 0;
+    let maxHourPoints = 0;
+    hourDist.forEach((pts, hr) => {
+      if (pts > maxHourPoints) {
+        maxHourPoints = pts;
+        peakHour = hr;
+      }
+    });
+
+    const maxHuntedCount = Math.max(...(topHunteds.length > 0 ? topHunteds.map(h => h.count) : [1]), 1);
+    const maxRespawnCount = Math.max(...(topRespawns.length > 0 ? topRespawns.map(r => r.count) : [1]), 1);
+
+    return {
+      name: targetPlayer,
+      totalKS,
+      actionsCount: rows.length,
+      ptKSCount,
+      soloKSCount,
+      latestActivity,
+      peakHourFormatted: `${peakHour.toString().padStart(2, '0')}:00h`,
+      topHunteds,
+      topRespawns,
+      maxHuntedCount,
+      maxRespawnCount
+    };
+  }, [selectedCombatant, rawData, uniqueCombatants]);
 
   useEffect(() => {
     if (!huntedIntel?.targets) return;
@@ -190,14 +313,26 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
             <div className="space-y-3">
               <button 
                 onClick={onNewEntry}
-                className="w-full group flex items-center gap-4 p-4 bg-neon-green/5 border border-neon-green/20 rounded-xl hover:border-neon-green hover:bg-neon-green/10 transition-all"
+                className="w-full group flex flex-col items-start p-4 bg-neon-green/5 border border-neon-green/20 rounded-xl hover:border-neon-green hover:bg-neon-green/10 transition-all text-left"
               >
-                <div className="w-10 h-10 rounded-lg bg-neon-green/20 flex items-center justify-center text-neon-green group-hover:scale-110 transition-transform">
-                  <Plus className="w-5 h-5" />
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-10 h-10 rounded-lg bg-neon-green/20 flex items-center justify-center text-neon-green group-hover:scale-110 transition-transform shrink-0">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-display font-bold uppercase tracking-wider text-white">Registro KS</p>
+                      <span className="text-[9px] font-mono text-neon-green bg-neon-green/10 px-2 py-0.5 rounded border border-neon-green/20">Novo</span>
+                    </div>
+                    <p className="text-[9px] text-gray-500 uppercase">Preenchimento de KS & Coluna K</p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <p className="text-xs font-display font-bold uppercase tracking-wider">Registro KS</p>
-                  <p className="text-[9px] text-gray-500 uppercase">Register KS Data</p>
+
+                <div className="mt-3 pt-3 border-t border-white/5 w-full grid grid-cols-2 gap-1.5 text-[9px] font-mono">
+                  <span className="text-gray-400">• <strong className="text-white">Solo:</strong> normal</span>
+                  <span className="text-amber-300">• <strong className="text-white">TC:</strong> Tancando hunt</span>
+                  <span className="text-emerald-300">• <strong className="text-white">LC:</strong> Localizou hunted</span>
+                  <span className="text-neon-purple">• <strong className="text-white">PT:</strong> KS Party (2 pts)</span>
                 </div>
               </button>
 
@@ -401,6 +536,279 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
         </div>
       </motion.div>
 
+      {/* Card Visão KS (Kszeiros) */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.88 }}
+        className="cyber-card p-6 md:p-8 cyber-border border-neon-blue/30 relative overflow-hidden bg-gradient-to-br from-neon-blue/5 via-black to-black"
+      >
+        <div className="absolute top-0 right-0 w-80 h-80 bg-neon-blue/10 blur-[130px] rounded-full -mr-32 -mt-32 pointer-events-none" />
+
+        {/* Card Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-neon-blue/20 border border-neon-blue/40 rounded-xl flex items-center justify-center text-neon-blue shadow-[0_0_25px_rgba(0,243,255,0.25)]">
+              <Crosshair className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl md:text-2xl font-display font-black text-white uppercase tracking-tight">
+                  Visão KS
+                </h3>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-neon-blue/10 border border-neon-blue/30 text-neon-blue uppercase tracking-widest">
+                  Individual Intel
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-gray-400">
+                Filtre por qualquer kszeiro do KS para analisar seus alvos mais frequentes e respawns dominados
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Stats Pill */}
+          <div className="flex items-center gap-2 text-xs font-mono text-gray-400 bg-white/5 border border-white/10 rounded-xl px-3 py-2 w-fit">
+            <Users className="w-4 h-4 text-neon-blue" />
+            <span>{uniqueCombatants.length} Kszeiros Registrados</span>
+          </div>
+        </div>
+
+        {/* Search & Selection Controls */}
+        <div className="space-y-3 mb-6">
+          <div className="flex flex-col md:flex-row gap-3">
+            {/* Input with Search Icon */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neon-blue" />
+              <input
+                type="text"
+                value={combatantSearchQuery}
+                onChange={(e) => setCombatantSearchQuery(e.target.value)}
+                placeholder="Pesquisar kszeiro do KS pelo nome (ex: Prezord, Alis Mell)..."
+                className="w-full bg-black/60 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs md:text-sm text-white font-mono placeholder:text-gray-500 focus:outline-none focus:border-neon-blue transition-all"
+              />
+              {combatantSearchQuery && (
+                <button
+                  onClick={() => setCombatantSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Quick Dropdown select */}
+            <select
+              value={selectedCombatant}
+              onChange={(e) => {
+                setSelectedCombatant(e.target.value);
+                setCombatantSearchQuery('');
+              }}
+              className="bg-black/80 border border-white/15 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white font-mono outline-none focus:border-neon-blue transition-all cursor-pointer"
+            >
+              {uniqueCombatants.map(c => (
+                <option key={c.name} value={c.name} className="bg-neutral-900 text-white">
+                  {c.name} ({c.totalKS} KS)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Quick Select Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 mr-1">Sugestões rápidas:</span>
+            {filteredCombatantList.slice(0, 6).map(c => {
+              const isSelected = selectedCombatant.toLowerCase() === c.name.toLowerCase();
+              return (
+                <button
+                  key={c.name}
+                  onClick={() => {
+                    setSelectedCombatant(c.name);
+                    setCombatantSearchQuery('');
+                  }}
+                  className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border transition-all ${
+                    isSelected 
+                      ? 'bg-neon-blue/20 border-neon-blue text-white shadow-[0_0_10px_rgba(0,243,255,0.3)]' 
+                      : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
+                  }`}
+                >
+                  {c.name} <span className="opacity-60 text-[9px]">({c.totalKS})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Combatant Stats Card */}
+        {combatantDetails ? (
+          <div className="space-y-6">
+            {/* Operator Header Card */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-neon-blue/20 to-neon-purple/20 border border-neon-blue/40 flex items-center justify-center font-display font-black text-xl text-white shadow-[0_0_20px_rgba(0,243,255,0.2)]">
+                  {combatantDetails.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xl font-bold font-display uppercase tracking-tight text-white">
+                      {combatantDetails.name}
+                    </h4>
+                    <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-neon-green/10 border border-neon-green/30 text-neon-green uppercase font-bold">
+                      Ativo no KS
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-gray-400 mt-0.5">
+                    {combatantDetails.actionsCount} ações registradas • Último KS: {combatantDetails.latestActivity ? new Date(combatantDetails.latestActivity).toLocaleDateString('pt-BR') : 'Recente'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Badges / Metrics Row - Pontuação Geral */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 bg-black/50 border border-neon-blue/30 rounded-xl text-center shadow-[0_0_15px_rgba(0,243,255,0.1)]">
+                  <span className="text-[9px] font-mono text-gray-400 uppercase block">Pontuação Geral</span>
+                  <span className="text-xl font-display font-black text-neon-blue">{combatantDetails.totalKS} <span className="text-xs font-mono font-normal">KS</span></span>
+                </div>
+                <div className="p-2.5 bg-black/50 border border-white/10 rounded-xl text-center">
+                  <span className="text-[9px] font-mono text-gray-500 uppercase block">Total de Ações</span>
+                  <span className="text-xl font-display font-black text-white">{combatantDetails.actionsCount}</span>
+                </div>
+                <div className="p-2.5 bg-black/50 border border-white/10 rounded-xl text-center">
+                  <span className="text-[9px] font-mono text-gray-500 uppercase block">Média / Registro</span>
+                  <span className="text-xl font-display font-black text-neon-purple">
+                    {(combatantDetails.totalKS / (combatantDetails.actionsCount || 1)).toFixed(1)}
+                  </span>
+                </div>
+                <div className="p-2.5 bg-black/50 border border-white/10 rounded-xl text-center">
+                  <span className="text-[9px] font-mono text-gray-500 uppercase block">Hora de Pico</span>
+                  <span className="text-xl font-display font-black text-red-400">{combatantDetails.peakHourFormatted}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Top 3 Hunteds & Top 3 Respawns Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Top 3 Hunteds Card */}
+              <div className="bg-black/50 border border-red-500/20 rounded-2xl p-5 space-y-4 hover:border-red-500/40 transition-colors">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-red-500 animate-pulse" />
+                    <div>
+                      <h5 className="font-display font-black text-sm text-white uppercase tracking-tight">
+                        Top 3 Hunteds Mais Caçados
+                      </h5>
+                      <span className="text-[10px] font-mono text-gray-500">
+                        Alvos que mais sofreram KS deste kszeiro
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-red-400 font-bold">ALVOS</span>
+                </div>
+
+                <div className="space-y-3">
+                  {combatantDetails.topHunteds.length > 0 ? (
+                    combatantDetails.topHunteds.map((hunted, idx) => {
+                      const medalColors = ['text-yellow-400 border-yellow-400/40 bg-yellow-400/10', 'text-gray-300 border-gray-400/40 bg-gray-400/10', 'text-amber-500 border-amber-600/40 bg-amber-600/10'];
+                      const percentage = Math.round((hunted.count / combatantDetails.totalKS) * 100);
+
+                      return (
+                        <div key={hunted.name} className="p-3 bg-white/5 border border-white/5 rounded-xl space-y-2 hover:border-red-500/30 transition-all">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`w-6 h-6 rounded-lg border font-mono font-bold text-xs flex items-center justify-center ${medalColors[idx] || 'text-gray-400 border-white/10'}`}>
+                                #{idx + 1}
+                              </span>
+                              <span className="font-mono font-bold text-sm text-white tracking-wide">
+                                {hunted.name}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-display font-black text-red-400">{hunted.count} KS</span>
+                              <span className="text-[9px] font-mono text-gray-500 block">{percentage}% do total</span>
+                            </div>
+                          </div>
+                          {/* Progress Bar */}
+                          <div className="w-full h-1.5 bg-black/60 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-red-600 to-orange-500 rounded-full transition-all duration-700"
+                              style={{ width: `${(hunted.count / combatantDetails.maxHuntedCount) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-6 text-xs font-mono text-gray-500">
+                      Nenhum alvo específico catalogado para este kszeiro.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Top 3 Respawns Card */}
+              <div className="bg-black/50 border border-neon-blue/20 rounded-2xl p-5 space-y-4 hover:border-neon-blue/40 transition-colors">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-neon-blue animate-pulse" />
+                    <div>
+                      <h5 className="font-display font-black text-sm text-white uppercase tracking-tight">
+                        Top 3 Respawns
+                      </h5>
+                      <span className="text-[10px] font-mono text-gray-500">
+                        Locais onde mais registrou ações de KS
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-neon-blue font-bold">SPAWNS</span>
+                </div>
+
+                <div className="space-y-3">
+                  {combatantDetails.topRespawns.length > 0 ? (
+                    combatantDetails.topRespawns.map((respawn, idx) => {
+                      const medalColors = ['text-neon-blue border-neon-blue/40 bg-neon-blue/10', 'text-neon-purple border-neon-purple/40 bg-neon-purple/10', 'text-neon-green border-neon-green/40 bg-neon-green/10'];
+                      const percentage = Math.round((respawn.count / combatantDetails.totalKS) * 100);
+
+                      return (
+                        <div key={respawn.name} className="p-3 bg-white/5 border border-white/5 rounded-xl space-y-2 hover:border-neon-blue/30 transition-all">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`w-6 h-6 rounded-lg border font-mono font-bold text-xs flex items-center justify-center ${medalColors[idx] || 'text-gray-400 border-white/10'}`}>
+                                #{idx + 1}
+                              </span>
+                              <span className="font-mono font-bold text-sm text-white tracking-wide">
+                                {respawn.name}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-display font-black text-neon-blue">{respawn.count} KS</span>
+                              <span className="text-[9px] font-mono text-gray-500 block">{percentage}% do total</span>
+                            </div>
+                          </div>
+                          {/* Progress Bar */}
+                          <div className="w-full h-1.5 bg-black/60 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-neon-blue to-neon-purple rounded-full transition-all duration-700"
+                              style={{ width: `${(respawn.count / combatantDetails.maxRespawnCount) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-6 text-xs font-mono text-gray-500">
+                      Nenhum respawn catalogado para este kszeiro.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 border border-dashed border-white/10 rounded-2xl text-xs font-mono text-gray-500">
+            Nenhum kszeiro selecionado ou sem registros disponíveis.
+          </div>
+        )}
+      </motion.div>
+
       {/* Hunted Intelligence */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -423,8 +831,30 @@ export const Overview: React.FC<OverviewProps> = ({ data, onBackToIntelligence, 
           </div>
         </div>
 
+        {/* Search Filter Bar */}
+        <div className="mb-6 relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+          <input
+            type="text"
+            value={searchHunted}
+            onChange={(e) => setSearchHunted(e.target.value)}
+            placeholder="Pesquisar hunted por nome (ex: Alvo, Guilda)..."
+            className="w-full bg-black/60 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white font-mono placeholder:text-gray-600 focus:outline-none focus:border-red-500/50 transition-all shadow-inner"
+          />
+          {searchHunted && (
+            <button
+              onClick={() => setSearchHunted('')}
+              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-mono text-gray-500 hover:text-white"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {huntedIntel?.targets.slice(0, 6).map((target, i) => {
+          {filteredTargets.map((target, i) => {
             const lastSeenDate = new Date(target.lastSeen);
             const diffDays = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60 * 60 * 24));
             const isOnline = onlineStatus[target.name]?.isOnline;

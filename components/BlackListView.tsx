@@ -1,12 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ShieldAlert, User, Clock, Flame, Zap, ArrowLeft, Search } from 'lucide-react';
+import { ShieldAlert, User, Clock, Flame, Zap, ArrowLeft, Search, ExternalLink, Users, Skull, Shield } from 'lucide-react';
 import { fetchCharacterStatus, CharacterStatus } from '../services/tibiaDataService';
 import { fetchBlackListFromSupabase } from '../services/supabaseService';
 
 interface BlackListViewProps {
   onBack: () => void;
 }
+
+interface HuntedGuild {
+  name: string;
+  url: string;
+  representative: string;
+  description: string;
+  threatLevel: 'EXTREME' | 'HIGH' | 'CRITICAL';
+}
+
+const HUNTED_GUILDS: HuntedGuild[] = [
+  {
+    name: "Horde",
+    url: "https://www.tibia.com/community/?subtopic=guilds&page=view&GuildName=Horde&character=Knight+Shida&action=characters",
+    representative: "Knight Shida",
+    description: "Guilda hostil em estado permanente de Hunted.",
+    threatLevel: "CRITICAL"
+  },
+  {
+    name: "Conclavium",
+    url: "https://www.tibia.com/community/?subtopic=guilds&page=view&GuildName=Conclavium&character=Mur%27Draiken&action=characters",
+    representative: "Mur'Draiken",
+    description: "Facção rival registrada em monitoramento tático de KS.",
+    threatLevel: "CRITICAL"
+  },
+  {
+    name: "Phantons",
+    url: "https://www.tibia.com/community/?subtopic=guilds&page=view&GuildName=Phantons&character=Morzag+Alvoradense&action=characters",
+    representative: "Morzag Alvoradense",
+    description: "Guilda inimiga sob ordem de mitigação prioritária.",
+    threatLevel: "EXTREME"
+  }
+];
 
 const BLACKLIST_NAMES = [
   "Denari Dakis",
@@ -32,6 +64,7 @@ const BLACKLIST_NAMES = [
 export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
   const [blacklistNames, setBlacklistNames] = useState<string[]>(BLACKLIST_NAMES);
   const [statuses, setStatuses] = useState<Record<string, CharacterStatus>>({});
+  const [guildLeaderStatuses, setGuildLeaderStatuses] = useState<Record<string, CharacterStatus>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -49,15 +82,31 @@ export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
         console.warn("Não foi possível carregar a blacklist do Supabase, usando fallback estático:", err);
       }
 
-      const results = await Promise.all(
-        namesToFetch.map(async (name) => ({
-          name,
-          status: await fetchCharacterStatus(name)
-        }))
-      );
+      // Fetch guild representatives statuses
+      const guildReps = HUNTED_GUILDS.map(g => g.representative);
+      const [blacklistResults, guildResults] = await Promise.all([
+        Promise.all(
+          namesToFetch.map(async (name) => ({
+            name,
+            status: await fetchCharacterStatus(name)
+          }))
+        ),
+        Promise.all(
+          guildReps.map(async (name) => ({
+            name,
+            status: await fetchCharacterStatus(name)
+          }))
+        )
+      ]);
+
       const newStatuses: Record<string, CharacterStatus> = {};
-      results.forEach(r => { newStatuses[r.name] = r.status; });
+      blacklistResults.forEach(r => { newStatuses[r.name] = r.status; });
       setStatuses(newStatuses);
+
+      const newGuildStatuses: Record<string, CharacterStatus> = {};
+      guildResults.forEach(r => { newGuildStatuses[r.name] = r.status; });
+      setGuildLeaderStatuses(newGuildStatuses);
+
       setLoading(false);
     };
 
@@ -71,8 +120,9 @@ export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="space-y-8">
+      {/* Top Bar with Navigation and Filter */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <button 
           onClick={onBack}
           className="flex items-center gap-2 text-xs font-display uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
@@ -84,7 +134,7 @@ export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-blue transition-colors" />
           <input 
             type="text"
-            placeholder="Filtrar Black List..."
+            placeholder="Filtrar Alvos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs font-mono text-white outline-none focus:border-neon-blue transition-all"
@@ -92,6 +142,122 @@ export const BlackListView: React.FC<BlackListViewProps> = ({ onBack }) => {
         </div>
       </div>
 
+      {/* GUILDS HUNTED SECTION */}
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="cyber-card p-6 md:p-8 cyber-border border-red-500/40 relative overflow-hidden bg-gradient-to-br from-red-950/20 via-black to-black"
+      >
+        <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center justify-center text-red-500 shadow-[0_0_25px_rgba(239,68,68,0.3)]">
+              <Users className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-2xl font-display font-black text-white uppercase tracking-tight">Guilds Hunted</h3>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-red-500/20 border border-red-500/40 text-red-400 uppercase tracking-widest">
+                  War Targets
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-gray-400">
+                Guildas inimigas e facções hostis catalogadas sob ordem de mitigação
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right">
+            <span className="text-xs font-mono text-red-500 font-bold block uppercase tracking-wider flex items-center sm:justify-end gap-1">
+              <Skull className="w-3.5 h-3.5" /> 3 Facções Ativas
+            </span>
+            <span className="text-[10px] font-mono text-gray-500">Monitoramento Contínuo Tibia.com</span>
+          </div>
+        </div>
+
+        {/* Guild Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {HUNTED_GUILDS.map((guild, idx) => {
+            const repStatus = guildLeaderStatuses[guild.representative];
+            const isRepOnline = repStatus?.isOnline;
+
+            return (
+              <motion.div
+                key={guild.name}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.08 }}
+                className="bg-black/60 border border-red-500/20 hover:border-red-500/50 rounded-2xl p-5 flex flex-col justify-between group transition-all duration-300 relative overflow-hidden hover:shadow-[0_0_30px_rgba(239,68,68,0.15)]"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-xl pointer-events-none group-hover:bg-red-500/10 transition-colors" />
+
+                <div>
+                  {/* Header of Guild Card */}
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <span className="text-[9px] font-mono tracking-widest text-red-400 uppercase font-semibold">
+                        Guild Hostil #{idx + 1}
+                      </span>
+                      <h4 className="text-xl font-display font-black text-white group-hover:text-red-400 transition-colors tracking-tight flex items-center gap-2">
+                        {guild.name}
+                      </h4>
+                    </div>
+                    <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 font-bold uppercase tracking-wider">
+                      {guild.threatLevel}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-gray-400 font-mono mb-4 leading-relaxed">
+                    {guild.description}
+                  </p>
+
+                  {/* Representative Target Box */}
+                  <div className="p-3 bg-white/5 border border-white/5 rounded-xl mb-4 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
+                      <span>Membro / Representante:</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${isRepOnline ? 'bg-neon-green animate-pulse shadow-[0_0_6px_#0aff0a]' : 'bg-gray-600'}`} />
+                        <span className={`font-bold ${isRepOnline ? 'text-neon-green' : 'text-gray-500'}`}>
+                          {isRepOnline ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white font-mono flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-red-400" />
+                        {guild.representative}
+                      </span>
+                      {repStatus?.level && (
+                        <span className="text-[10px] font-mono text-gray-400">
+                          Lvl {repStatus.level}
+                        </span>
+                      )}
+                    </div>
+                    {repStatus?.vocation && (
+                      <div className="text-[9px] font-mono text-gray-500 truncate">
+                        {repStatus.vocation}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tibia.com Action Link */}
+                <a
+                  href={guild.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full mt-2 py-2.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 hover:border-red-500 text-red-300 hover:text-white text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all duration-200 group-hover:shadow-[0_0_15px_rgba(239,68,68,0.25)]"
+                >
+                  <span>Ver Guilda no Tibia.com</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* BANNED OPERATORS SECTION */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
