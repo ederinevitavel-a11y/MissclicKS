@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key, Clock, ShieldAlert, LogIn, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
@@ -14,6 +14,80 @@ interface KSRegistrationFormProps {
 }
 
 export type KSModalidade = 'SOLO' | 'TC' | 'LC' | 'PT';
+
+export const STATIC_RESPAWNS: string[] = [
+  "Alminhas Port Hope",
+  "Asura Espelho",
+  "Bashmu",
+  "Boquinhas Feyrist",
+  "Bulltar",
+  "Burning Gladiator",
+  "Caminho Ferumbras",
+  "Carnivors",
+  "Catacombs",
+  "Catedral",
+  "Cobra Castelo",
+  "Crypt Warden",
+  "Crypt Warrior Bounac",
+  "Cults",
+  "Deathling",
+  "Deeplings",
+  "Demons/Grim Reaper de Oramond",
+  "Diremaw",
+  "DT -2",
+  "DT inq",
+  "Elfo de Fogo",
+  "Elfo de Gelo",
+  "Falcon",
+  "Fury Oramond",
+  "Furys de Oramond",
+  "Girtabilu",
+  "Glooth Bandit",
+  "Goannas",
+  "Gold Token",
+  "Grim Reaper de Drefia",
+  "Grim Reaper de Yalahar",
+  "Grim Reaper Yalahar",
+  "Helffire Fighers Inq",
+  "Iks",
+  "Ingol",
+  "Livraria 4",
+  "Livraria de Energia",
+  "Livraria de Fogo",
+  "Livraria de Gelo",
+  "Livraria de Terra",
+  "Livraria Edron",
+  "Livraria Nova",
+  "Lost Souls",
+  "Lower Roshamuul",
+  "Lyons Drume",
+  "Medusa",
+  "Mithmah",
+  "MotA (Zoios vermelhos)",
+  "Nagas",
+  "Nightmare Isles",
+  "Nimmersatt Dragons",
+  "Norcferatu Dugeons",
+  "Oramond Sewers",
+  "Orclops",
+  "Plague Seal",
+  "POI",
+  "Prison",
+  "Prision",
+  "Seacrest",
+  "Skeleton Elite Darashia",
+  "Sphinx",
+  "Tartarugas de Marapur",
+  "True Asura",
+  "Upper Roshamull",
+  "Walls",
+  "Warzones",
+  "Werehyena",
+  "Werelions",
+  "WereTigers",
+  "West",
+  "Wyrm Drefia"
+];
 
 export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData, rawData, onBack, userEmail }) => {
   const [formData, setFormData] = useState({
@@ -35,6 +109,18 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
   // Authorized Emails states
   const [allowedEmails, setAllowedEmails] = useState<string[]>(KNOWN_AUTHORIZED_EMAILS.map(e => e.trim().toLowerCase()));
   const [loadingEmails, setLoadingEmails] = useState(false);
+
+  // Respawns combinados: Lista oficial estática + quaisquer respawns da base rawData
+  const respawnOptions = useMemo(() => {
+    const set = new Set<string>(STATIC_RESPAWNS);
+    if (rawData && Array.isArray(rawData)) {
+      rawData.forEach((r: any) => {
+        const resp = (r.respawn || '').trim();
+        if (resp) set.add(resp);
+      });
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }, [rawData]);
 
   // Anti-Spam Rate Limiting States
   const [cooldown, setCooldown] = useState({ active: false, seconds: 0, hourly: false });
@@ -503,14 +589,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-display uppercase tracking-widest text-white outline-none focus:border-neon-blue transition-all appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <option value="" disabled className="bg-neon-dark">Selecionar Respawn</option>
-              {[
-                "Asura Espelho", "Bashmu", "Bulltar", "Burning Gladiator", "Caminho Ferumbras", "Carnivors", "Catedral", "Cobra Castelo",
-                "Crypt Warden", "Cults", "Deathling", "DT -2", "Elfo de Fogo", "Elfo de Gelo", "Falcon", "Fury Oramond", "Girtabilu", "Glooth Bandit",
-                "Goannas", "Gold Token", "Ingol", "Livraria 4", "Livraria de Energia", "Livraria de Fogo", "Livraria de Gelo",
-                "Livraria de Terra", "Livraria Nova", "Lost Souls", "Lower Roshamuul", "Medusa", "Mithmah", "Nagas", "Nightmare Isles",
-                "Oramond Sewers", "Orclops", "Plague Seal", "POI", "Prision", "Seacrest", "Sphinx", "Tartarugas de Marapur", "True Asura",
-                "Upper Roshamull", "Walls", "Warzones", "Werehyena", "Werelions", "WereTigers", "West", "Wyrm Drefia"
-              ].map(respawn => (
+              {respawnOptions.map(respawn => (
                 <option key={respawn} value={respawn} className="bg-neon-dark">{respawn}</option>
               ))}
             </select>
