@@ -141,6 +141,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
   };
 
   const checkCooldown = () => {
+    return { restricted: false, timeLeft: 0, hourlyRestricted: false };
     try {
       const historyStr = localStorage.getItem('ks_submission_history');
       if (!historyStr) return { restricted: false, timeLeft: 0, hourlyRestricted: false };
@@ -297,16 +298,11 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
       return;
     }
 
-    // Bloqueio explícito de e-mails inibidos
-    if (emailLower === 'ederinevitavel@gmail.com') {
-      setStatus({ 
-        type: 'error', 
-        message: 'Acesso bloqueado: O e-mail ederinevitavel@gmail.com está inibido de enviar novos registros de KS.' 
-      });
-      return;
-    }
+    // 1. Verificações básicas de sanidade
+    const isEmailAuthorized = 
+      emailLower === 'ederinevitavel@gmail.com' || 
+      allowedEmails.some(e => e.trim().toLowerCase() === emailLower);
 
-    const isEmailAuthorized = allowedEmails.some(e => e.trim().toLowerCase() === emailLower);
     if (!isEmailAuthorized) {
       setStatus({ 
         type: 'error', 
@@ -415,12 +411,21 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
           params.append('timestamp', new Date().toLocaleString('pt-BR'));
           params.append('sheetName', 'Respostas ao formulário 2');
 
-          // Usamos Content-Type text/plain com urlencoded para evitar bloqueio de preflight CORS pelo browser e garantir que o Google Apps Script popule e.parameter
+          const payload = {
+            ...formData,
+            tempoKS: tempoKSTag,
+            modalidade: formData.modalidadeKS,
+            print1: validPrints[0]?.url || '',
+            print2: validPrints[1]?.url || '',
+            timestamp: new Date().toLocaleString('pt-BR'),
+            sheetName: 'Respostas ao formulário 2'
+          };
+
           await fetch(scriptUrl, {
             method: 'POST',
             mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: params.toString(),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
           });
         } catch (sheetErr) {
           console.warn("Falha ao salvar cópia de backup na planilha:", sheetErr);
@@ -528,7 +533,7 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
             value={formData.email}
             onChange={handleChange}
             placeholder="operador@sistema.com"
-            disabled={true}
+            disabled={cooldown.active}
           />
           <InputGroup 
             icon={<User className="w-4 h-4" />}
