@@ -24,6 +24,159 @@ export const formatPlayerName = (name: string): string => {
     .join(' ');
 };
 
+export const RESPAWN_CANONICAL_MAP: Record<string, string> = {
+  // Prisão
+  "prision": "Prison",
+  "prison": "Prison",
+
+  // Roshamuul
+  "upper roshamull": "Upper Roshamuul",
+  "upper roshamul": "Upper Roshamuul",
+  "upeer roshamul": "Upper Roshamuul",
+  "upper": "Upper Roshamuul",
+  "upper rosha/west": "Upper Roshamuul",
+  "lower": "Lower Roshamuul",
+  "lower roshamuul": "Lower Roshamuul",
+
+  // Catacombs
+  "catabombs-oramond": "Catacombs",
+  "catacombs - oramond": "Catacombs",
+  "catacombs": "Catacombs",
+
+  // Carnivors
+  "carnivor": "Carnivors",
+  "carnivors": "Carnivors",
+
+  // Crypt Warden & Bounac
+  "crypt warden": "Crypt Warden",
+  "crypt warrior bounac": "Crypt Warrior Bounac",
+
+  // Fury Oramond
+  "fury oramond": "Fury Oramond",
+  "furys de oramond": "Fury Oramond",
+
+  // Girtabilu
+  "girtabillu": "Girtabilu",
+  "girtablilu": "Girtabilu",
+  "girtabilu": "Girtabilu",
+
+  // Grim Reaper
+  "grim reaper de yalahar": "Grim Reaper Yalahar",
+  "grim reaper yalahar": "Grim Reaper Yalahar",
+  "grim reaper de drefia": "Grim Reaper Drefia",
+  "grim reaper drefia": "Grim Reaper Drefia",
+
+  // Ingol
+  "ingol": "Ingol",
+  "ingol surface": "Ingol Surface",
+  "ingol planicie e -2": "Ingol",
+
+  // Livraria
+  "livraria energy": "Livraria de Energia",
+  "livraria de energia": "Livraria de Energia",
+  "livraria de fogo": "Livraria de Fogo",
+  "livraria de gelo": "Livraria de Gelo",
+  "livraria de terra": "Livraria de Terra",
+  "livraria 4": "Livraria 4",
+  "livraria nova": "Livraria Nova",
+  "livraria edron": "Livraria Edron",
+
+  // Mithmah
+  "mitmah": "Mithmah",
+  "mitma": "Mithmah",
+  "mithma caminho": "Mithmah",
+  "mithmah": "Mithmah",
+
+  // Nimmersatt
+  "nimersat": "Nimmersatt Dragons",
+  "nimmersatt": "Nimmersatt Dragons",
+  "nimmersatt dragons": "Nimmersatt Dragons",
+
+  // Pumin / Selos Ferumbras
+  "pumin seal": "Pumin Seal",
+  "pumin": "Pumin Seal",
+  "pumim": "Pumin Seal",
+  "pulmin": "Pumin Seal",
+  "pumin ferumbras": "Pumin Seal",
+  "pumim -1 -2": "Pumin Seal",
+  "pumin / plag": "Pumin Seal",
+  "plague seal": "Plague Seal",
+  "selo zamulosh": "Selo Zamulosh",
+  "dark torturer seal": "DT Inq",
+  "ferumbras (pumin e outros selos)": "Caminho Ferumbras",
+
+  // Marapur
+  "tartarugas - marapur": "Tartarugas de Marapur",
+  "turtles marapur": "Tartarugas de Marapur",
+  "tartarugas de marapur": "Tartarugas de Marapur",
+
+  // Werecreatures
+  "werecocodrille": "Werecrocodiles",
+  "werecrocodile": "Werecrocodiles",
+  "werelion": "Werelions",
+  "werelions": "Werelions",
+  "weretigers": "WereTigers",
+  "weretiger": "WereTigers",
+  "werehyena": "Werehyena",
+  "skeletinho/werelion": "Werelions",
+
+  // Falcon
+  "falcon castle": "Falcon",
+  "falcons subsolo": "Falcon Subsolo",
+  "falcon subsolo": "Falcon Subsolo",
+  "falcon": "Falcon",
+
+  // Inquisição / DT
+  "dt - 1": "DT -1",
+  "dt menos 1": "DT -1",
+  "dt -1": "DT -1",
+  "dt -2": "DT -2",
+  "dt inq": "DT Inq",
+  "helffire fighers inq": "Hellfire Fighters Inq",
+  "hellfire fighters inq": "Hellfire Fighters Inq",
+
+  // Alminhas
+  "alminhas": "Alminhas Port Hope",
+  "alminhas port hope": "Alminhas Port Hope",
+  "alminha de venore": "Alminha de Venore",
+
+  // Bulltaur
+  "bulltaur lair": "Bulltar",
+  "bulltar": "Bulltar",
+
+  // Flimsy Venore & Port Hope
+  "flimsi venore": "Flimsy Venore",
+  "flimsy venore": "Flimsy Venore",
+  "flinsy venore - werelion": "Flimsy Venore",
+  "flimsy port hope": "Flimsy Port Hope",
+  "flimsi port hope": "Flimsy Port Hope",
+
+  // Pirats
+  "pirat navio": "Pirats",
+  "pirats": "Pirats",
+
+  // Dungeons
+  "norcferatu dugeons": "Nosferatu Dungeons",
+  "nosferatu dungeons": "Nosferatu Dungeons",
+
+  // POI & Warzones
+  "poi": "POI",
+  "wz6": "WZ6",
+  "warzone 3": "Warzone 3",
+  "warzone 7": "Warzone 7",
+  "warzone 7 - girtabilu": "Warzone 7",
+  "warzone 9": "Warzone 9",
+  "warzones": "Warzones",
+  "demons/grim reaper de oramond": "Demons/Grim Reaper Oramond"
+};
+
+export const formatRespawnName = (name: string): string => {
+  if (!name) return '';
+  const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
+  return RESPAWN_CANONICAL_MAP[lower] || trimmed;
+};
+
 const GITHUB_CSV_NAME = 'dados.csv';
 const DEFAULT_FALLBACK = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkJhKP1MWxMqBupRr3TmzbsuoZHF2ljzRG1lMCjZ--46ON-vVoPf4mgn5PqjmiWtOpphpmkPYFeYLK/pub?output=csv';
 
@@ -174,13 +327,14 @@ const parseCSV = (csvText: string): RawDataRow[] => {
 
     const formattedPlayer = formatPlayerName(name);
     const formattedHunted = formatPlayerName(hunted);
+    const formattedRespawn = formatRespawnName(respawn);
 
     data.push({
       player: formattedPlayer,
       ks: points, 
       date: dateObj.toISOString(),
       playerRank: rank.trim(),
-      respawn: respawn.trim(),
+      respawn: formattedRespawn,
       huntedName: formattedHunted,
       usualTime: usualTime.trim(),
       tempoKS: tempoKS,

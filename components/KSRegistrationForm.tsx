@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key, Clock, ShieldAlert, LogIn, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { insertKSEntryIntoSupabase, fetchBlackListFromSupabase } from '../services/supabaseService';
-import { fetchAllowedEmailsFromCSV, KNOWN_AUTHORIZED_EMAILS, ADMIN_EMAILS } from '../services/csvService';
+import { fetchAllowedEmailsFromCSV, KNOWN_AUTHORIZED_EMAILS, ADMIN_EMAILS, formatRespawnName } from '../services/csvService';
 
 interface KSRegistrationFormProps {
   onSuccess?: () => void;
@@ -18,6 +18,8 @@ export type KSModalidade = 'SOLO' | 'TC' | 'LC' | 'PT';
 export const STATIC_RESPAWNS: string[] = [
   "Alminhas Port Hope",
   "Asura Espelho",
+  "Azzilon Castle",
+  "Banuta -4",
   "Bashmu",
   "Boquinhas Feyrist",
   "Bulltar",
@@ -32,25 +34,28 @@ export const STATIC_RESPAWNS: string[] = [
   "Cults",
   "Deathling",
   "Deeplings",
-  "Demons/Grim Reaper de Oramond",
+  "Demons/Grim Reaper Oramond",
   "Diremaw",
+  "DT -1",
   "DT -2",
-  "DT inq",
+  "DT Inq",
   "Elfo de Fogo",
   "Elfo de Gelo",
   "Falcon",
+  "Falcon Subsolo",
+  "Flimsy Port Hope",
+  "Flimsy Venore",
   "Fury Oramond",
-  "Furys de Oramond",
   "Girtabilu",
   "Glooth Bandit",
   "Goannas",
   "Gold Token",
-  "Grim Reaper de Drefia",
-  "Grim Reaper de Yalahar",
+  "Grim Reaper Drefia",
   "Grim Reaper Yalahar",
-  "Helffire Fighers Inq",
+  "Hellfire Fighters Inq",
   "Iks",
   "Ingol",
+  "Ingol Surface",
   "Livraria 4",
   "Livraria de Energia",
   "Livraria de Fogo",
@@ -67,26 +72,33 @@ export const STATIC_RESPAWNS: string[] = [
   "Nagas",
   "Nightmare Isles",
   "Nimmersatt Dragons",
-  "Norcferatu Dugeons",
+  "Nosferatu Dungeons",
   "Oramond Sewers",
   "Orclops",
+  "Pirats",
   "Plague Seal",
   "POI",
   "Prison",
-  "Prision",
+  "Pumin Seal",
   "Seacrest",
+  "Selo Zamulosh",
   "Skeleton Elite Darashia",
   "Sphinx",
   "Tartarugas de Marapur",
   "True Asura",
-  "Upper Roshamull",
+  "Upper Roshamuul",
   "Walls",
+  "Warzone 3",
+  "Warzone 7",
+  "Warzone 9",
   "Warzones",
+  "Werecrocodiles",
   "Werehyena",
   "Werelions",
   "WereTigers",
   "West",
-  "Wyrm Drefia"
+  "Wyrm Drefia",
+  "WZ6"
 ];
 
 export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData, rawData, onBack, userEmail }) => {
@@ -110,12 +122,13 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
   const [allowedEmails, setAllowedEmails] = useState<string[]>(KNOWN_AUTHORIZED_EMAILS.map(e => e.trim().toLowerCase()));
   const [loadingEmails, setLoadingEmails] = useState(false);
 
-  // Respawns combinados: Lista oficial estática + quaisquer respawns da base rawData
+  // Respawns combinados: Lista oficial estática + quaisquer respawns da base rawData (normalizados sem duplicatas)
   const respawnOptions = useMemo(() => {
-    const set = new Set<string>(STATIC_RESPAWNS);
+    const set = new Set<string>();
+    STATIC_RESPAWNS.forEach(r => set.add(formatRespawnName(r)));
     if (rawData && Array.isArray(rawData)) {
       rawData.forEach((r: any) => {
-        const resp = (r.respawn || '').trim();
+        const resp = formatRespawnName(r.respawn || '');
         if (resp) set.add(resp);
       });
     }

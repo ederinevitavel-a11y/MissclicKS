@@ -10,6 +10,7 @@ import { LegendsView } from './components/LegendsView';
 import { BlackListView } from './components/BlackListView';
 import { KSRegistrationForm } from './components/KSRegistrationForm';
 import { JoinKSTeamForm } from './components/JoinKSTeamForm';
+import { SuggestHuntedForm } from './components/SuggestHuntedForm';
 import { aggregateData, fetchAndParseData, getOverviewStats } from './services/csvService';
 import { fetchKSEntriesFromSupabase } from './services/supabaseService';
 import { RankedPlayer, RawDataRow, TimeFrame, OverviewData } from './types';
@@ -18,6 +19,7 @@ import { CrosshairIcon } from './components/NeonIcons';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
+  const [publicView, setPublicView] = useState<'login' | 'suggest_hunted' | 'join_team'>('login');
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('DADOS_STATS');
   const [dadosSubTab, setDadosSubTab] = useState<string>(TimeFrame.OVERVIEW);
@@ -232,9 +234,42 @@ const App: React.FC = () => {
   }
 
   if (!user) {
+    if (publicView === 'suggest_hunted') {
+      return (
+        <div className="min-h-screen bg-neon-dark text-white p-4 py-8 relative">
+          <div className="fixed inset-0 z-0 pointer-events-none">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+          </div>
+          <div className="relative z-10 max-w-4xl mx-auto">
+            <SuggestHuntedForm 
+              onBack={() => setPublicView('login')} 
+              onBackToIntelligence={() => setPublicView('login')} 
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (publicView === 'join_team') {
+      return (
+        <div className="min-h-screen bg-neon-dark text-white p-4 py-8 relative">
+          <div className="fixed inset-0 z-0 pointer-events-none">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+          </div>
+          <div className="relative z-10 max-w-4xl mx-auto">
+            <JoinKSTeamForm onBack={() => setPublicView('login')} />
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-neon-dark text-white p-4">
-        <FirebaseLoginCard onLoginSuccess={setUser} />
+      <div className="min-h-screen bg-neon-dark text-white p-4 flex items-center justify-center">
+        <FirebaseLoginCard 
+          onLoginSuccess={setUser} 
+          onOpenSuggestHunted={() => setPublicView('suggest_hunted')}
+          onOpenJoinTeam={() => setPublicView('join_team')}
+        />
       </div>
     );
   }

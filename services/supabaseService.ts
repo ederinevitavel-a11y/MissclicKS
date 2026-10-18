@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { RawDataRow } from '../types';
-import { formatPlayerName } from './csvService';
+import { formatPlayerName, formatRespawnName } from './csvService';
 
 /**
  * Maps any Supabase row to the uniform RawDataRow format.
@@ -28,7 +28,7 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     ks: points,
     date: dateStr,
     playerRank: row.playerRank || row.player_rank || row.rank || 'Newcommer',
-    respawn: row.respawn || 'Unknown Area',
+    respawn: formatRespawnName(row.respawn || 'Unknown Area'),
     huntedName,
     usualTime: row.usualTime || row.usual_time || row.time || '',
     email: row.email || '',
