@@ -111,7 +111,7 @@ export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntel
       const points = r.ks || 1;
       totalKS += points;
 
-      const isPT = r.isPT || (r.tempoKS && r.tempoKS.toUpperCase().includes('PT')) || points === 2;
+      const isPT = points === 2;
       if (isPT) ptKSCount += points; else soloKSCount += points;
 
       // Alvo / Hunted

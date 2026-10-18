@@ -122,14 +122,11 @@ const App: React.FC = () => {
               });
 
               if (supaMatch) {
-                // Se a linha da planilha ou a do Supabase indicou PT (ou comprovante/código indica PT), garante status e 2 pontos
-                const isPT = sheetRow.isPT || supaMatch.isPT || sheetRow.ks === 2 || supaMatch.ks === 2;
+                // A planilha do Google Sheets é a autoridade máxima e oficial auditada pela liderança.
+                // A pontuação (Coluna K preenchida = 2 KS, vazia = 1 KS) é preservada intacta, enriquecendo apenas dados complementares (ex: e-mail).
                 return {
                   ...sheetRow,
-                  email: sheetRow.email || supaMatch.email,
-                  isPT,
-                  tempoKS: isPT ? 'PT' : (sheetRow.tempoKS || supaMatch.tempoKS),
-                  ks: isPT ? 2 : Math.max(sheetRow.ks, supaMatch.ks)
+                  email: sheetRow.email || supaMatch.email
                 };
               }
               return sheetRow;

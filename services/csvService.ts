@@ -139,28 +139,18 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     const cols = parseCSVLine(lines[i], delimiter);
     if (cols.length < 2) continue;
 
-    // Filtro estrito de Status: Coluna H precisa conter explicitamente 'aprovado'. Se estiver em branco, negado ou qualquer outra coisa, o KS não é considerado.
-    if (idxStatus !== -1) {
-      const status = cols[idxStatus] ? cols[idxStatus].toLowerCase().trim() : '';
-      if (!status.includes('aprovado')) {
-        continue;
-      }
-    } else {
-      // Se a coluna de status não foi encontrada, por segurança verifica se a linha contém 'aprovado'
-      const rowText = lines[i].toLowerCase();
-      if (!rowText.includes('aprovado')) {
-        continue;
-      }
+    // 1. Filtro estrito de Status (Coluna H): precisa ser estritamente 'aprovado'. Se estiver em branco, 'negado' ou outro texto, o registro é descartado.
+    const statusCol = idxStatus !== -1 ? cols[idxStatus] : (cols[7] || '');
+    const statusClean = statusCol ? statusCol.toLowerCase().trim() : '';
+    if (!statusClean.startsWith('aprovado') || statusClean.includes('negad') || statusClean.includes('reprovad')) {
+      continue;
     }
 
-    // Usa os índices detectados ou fallbacks fixos (0, 2, 3, 4, 5)
+    // 2. Extração do Jogador (Coluna C / nome do char)
     let name = cols[idxName !== -1 ? idxName : 2];
-    
-    // Se a coluna cair em um email (comum em forms), tenta a próxima coluna
     if (name && name.includes('@')) {
       name = cols[idxName !== -1 ? idxName + 1 : 3];
     }
-
     if (!name || name.trim() === '') continue;
 
     const dateStr = cols[idxDate !== -1 ? idxDate : 0];
@@ -169,36 +159,18 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     const respawn = idxRespawn !== -1 ? cols[idxRespawn] : (cols[5] || 'Unknown Area');
     const usualTime = cols[12] || ''; 
 
-    // Coluna K: Tempo de KS (onde 'PT' significa Party com 2 pontos)
-    const rawCol10 = cols[10] ? cols[10].trim() : '';
-    const tempoKS = (cols[idxTempo] !== undefined && cols[idxTempo] !== '' ? cols[idxTempo].trim() : rawCol10);
-    const tempoUpper = tempoKS.toUpperCase();
-    const rawCol10Upper = rawCol10.toUpperCase();
-    const isPT = tempoUpper === 'PT' || tempoUpper.includes('PT') || rawCol10Upper === 'PT' || rawCol10Upper.includes('PT');
+    // 3. Coluna K (índice 10): Tempo de KS
+    const rawColK = (cols[10] !== undefined ? cols[10] : (cols[idxTempo] || '')).trim();
+    const tempoKS = rawColK;
+
+    // REGRA GERAL:
+    // - Coluna K preenchida (com valor válido) = 2 KS
+    // - Coluna K em branco / vazia = 1 KS
+    const isColKFilled = tempoKS !== '' && tempoKS !== '-' && tempoKS !== '--' && tempoKS.toLowerCase() !== 'n/a';
+    const points = isColKFilled ? 2 : 1;
+    const isPTVal = points === 2;
 
     let dateObj = parseFlexibleDate(dateStr) || new Date();
-
-    // REGRA RESTRITA: Só vale 2 KS se explicitamente indicado 'PT' ou peso 2 na Coluna K / peso. Caso contrário, vale 1 KS.
-    let points = 1;
-    
-    // Tenta ler da coluna de Peso se detectada
-    if (idxWeight !== -1 && cols[idxWeight]) {
-        const weightStr = cols[idxWeight].replace(',', '.').trim();
-        const weightVal = parseFloat(weightStr);
-        if (weightVal === 2 || weightVal === 2.0) {
-            points = 2;
-        }
-    } else {
-        const rowText = lines[i].toLowerCase();
-        if (rowText.includes('peso 02') || rowText.includes('peso 2')) {
-            points = 2;
-        }
-    }
-
-    // REGRA DE PT: Na coluna K (Tempo de KS), 'PT' significa que aquele KS vale 2 pontos
-    if (isPT) {
-        points = 2;
-    }
 
     const formattedPlayer = formatPlayerName(name);
     const formattedHunted = formatPlayerName(hunted);
@@ -212,7 +184,7 @@ const parseCSV = (csvText: string): RawDataRow[] => {
       huntedName: formattedHunted,
       usualTime: usualTime.trim(),
       tempoKS: tempoKS,
-      isPT: isPT
+      isPT: isPTVal
     });
   }
   
@@ -510,7 +482,7 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
     const pRank = row.playerRank ? row.playerRank.trim() : 'Sem Rank';
     
     const current = playerMap.get(canonicalName) || { totalKS: 0, games: 0, ptCount: 0, playerRank: pRank };
-    const isPT = row.isPT || (row.tempoKS && row.tempoKS.toUpperCase().includes('PT')) || row.ks === 2;
+    const isPT = row.ks === 2;
     playerMap.set(canonicalName, { 
       totalKS: current.totalKS + row.ks, 
       games: current.games + 1,
@@ -538,6 +510,7 @@ export const aggregateData = (rawData: RawDataRow[], frame: TimeFrame): RankedPl
 
 export const ADMIN_EMAILS: string[] = [
   'ederinevitavel@gmail.com',
+  'ederlcs@hotmail.com',
   'eloltronica@gmail.com',
   'hrdomenichelli@gmail.com',
   'prispituska@gmail.com',

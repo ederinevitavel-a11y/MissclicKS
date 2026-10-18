@@ -8,58 +8,20 @@ import { formatPlayerName } from './csvService';
  */
 const mapSupabaseRowToRawData = (row: any): RawDataRow => {
   const dateStr = row.date || row.created_at || row.timestamp || new Date().toISOString();
-  let points = typeof row.ks === 'number' ? row.ks : (Number(row.points || row.score || row.ks || 1));
-
   let tempoKS = (row.tempo_ks || row.tempo || row.time_spent || row.tempoKS || '').toString().trim();
   const idCode = (row.id_code || row.idCode || row.codigo || '').toString().trim();
   const print1Name = (row.print1_name || '').toString().trim();
   const print2Name = (row.print2_name || '').toString().trim();
 
-  const tempoUpper = tempoKS.toUpperCase();
-  const idCodeUpper = idCode.toUpperCase();
-  const isPT = tempoUpper === 'PT' || 
-               tempoUpper.includes('PT') || 
-               row.is_pt === true || 
-               row.isPT === true || 
-               /\bpt\b/i.test(idCode) || 
-               idCode.toLowerCase().includes('pt') ||
-               /\bpt\b/i.test(print1Name) || 
-               print1Name.toLowerCase().includes(' em pt') ||
-               /\bpt\b/i.test(print2Name) ||
-               print2Name.toLowerCase().includes(' em pt');
-
-  const isTC = tempoUpper === 'TC' || tempoUpper.includes('TC') || /\btc\b/i.test(idCode) || idCodeUpper.endsWith('TC') || idCodeUpper.endsWith(' TC');
-  const isLC = tempoUpper === 'LC' || tempoUpper.includes('LC') || /\blc\b/i.test(idCode) || idCodeUpper.endsWith('LC') || idCodeUpper.endsWith(' LC');
-
-  if (isPT && !tempoKS) {
-    tempoKS = 'PT';
-  } else if (isTC && !tempoKS) {
-    tempoKS = 'TC';
-  } else if (isLC && !tempoKS) {
-    tempoKS = 'LC';
-  }
-
-  // A partir de 09 de julho de 2026, todos os novos registros têm peso 1 por padrão
-  const dateObj = new Date(dateStr);
-  const cutoffDate = new Date('2026-07-09T00:00:00');
-  if (!isNaN(dateObj.getTime()) && dateObj >= cutoffDate) {
-    points = 1;
-  }
+  // REGRA DEFINITIVA: Se a Coluna K (tempo_ks) estiver preenchida, vale 2 KS. Se estiver vazia, vale 1 KS.
+  const isColKFilled = tempoKS !== '' && tempoKS !== '-' && tempoKS !== '--' && tempoKS.toLowerCase() !== 'n/a';
+  const points = isColKFilled ? 2 : 1;
+  const isPT = points === 2;
 
   const rawPlayer = (row.player || row.char_name || row.charName || row.name || '').trim();
   const rawHunted = (row.huntedName || row.hunted_name || row.hunted_target || '').trim();
   const player = formatPlayerName(rawPlayer);
   const huntedName = formatPlayerName(rawHunted);
-
-  // Se o jogador ou alvo for Capistrano, o peso deve ser sempre 1 (conforme regra do usuário)
-  if (player.toLowerCase().includes('capistrano') || huntedName.toLowerCase().includes('capistrano')) {
-    points = 1;
-  }
-
-  // REGRA DE PT: Na coluna K (Tempo de KS), 'PT' significa pontuação 2 (vale dois pontos)
-  if (isPT) {
-    points = 2;
-  }
 
   return {
     player,
