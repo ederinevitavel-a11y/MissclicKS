@@ -292,6 +292,8 @@ export const submitHuntedSuggestionToSupabase = async (suggestion: {
     hunted_name: suggestion.huntedName,
     huntedName: suggestion.huntedName,
     reason: suggestion.reason,
+    print1_url: suggestion.prints[0]?.url || '',
+    print2_url: suggestion.prints[1]?.url || '',
     prints: JSON.stringify(suggestion.prints),
     created_at: new Date().toISOString()
   };

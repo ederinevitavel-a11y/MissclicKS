@@ -4,6 +4,7 @@ import { Upload, CheckCircle, Shield, Mail, User, Target, MapPin, Key, Clock, Sh
 import { supabase } from '../services/supabase';
 import { insertKSEntryIntoSupabase, fetchBlackListFromSupabase } from '../services/supabaseService';
 import { fetchAllowedEmailsFromCSV, KNOWN_AUTHORIZED_EMAILS, ADMIN_EMAILS, formatRespawnName } from '../services/csvService';
+import { compressImage } from '../utils/imageCompressor';
 
 interface KSRegistrationFormProps {
   onSuccess?: () => void;
@@ -16,14 +17,16 @@ interface KSRegistrationFormProps {
 export type KSModalidade = 'SOLO' | 'TC' | 'LC' | 'PT';
 
 export const STATIC_RESPAWNS: string[] = [
-  "Alminhas Port Hope",
   "Asura Espelho",
   "Azzilon Castle",
   "Banuta -4",
   "Bashmu",
+  "Bazir Seal",
   "Boquinhas Feyrist",
+  "Bueiro Issavi",
   "Bulltar",
   "Burning Gladiator",
+  "Burster",
   "Caminho Ferumbras",
   "Carnivors",
   "Catacombs",
@@ -46,6 +49,7 @@ export const STATIC_RESPAWNS: string[] = [
   "Flimsy Port Hope",
   "Flimsy Venore",
   "Fury Oramond",
+  "Gazer Spectre",
   "Girtabilu",
   "Glooth Bandit",
   "Goannas",
@@ -54,6 +58,7 @@ export const STATIC_RESPAWNS: string[] = [
   "Grim Reaper Yalahar",
   "Hellfire Fighters Inq",
   "Iks",
+  "Inferniach",
   "Ingol",
   "Ingol Surface",
   "Livraria 4",
@@ -61,7 +66,6 @@ export const STATIC_RESPAWNS: string[] = [
   "Livraria de Fogo",
   "Livraria de Gelo",
   "Livraria de Terra",
-  "Livraria Edron",
   "Livraria Nova",
   "Lost Souls",
   "Lower Roshamuul",
@@ -86,9 +90,11 @@ export const STATIC_RESPAWNS: string[] = [
   "Sphinx",
   "Tartarugas de Marapur",
   "True Asura",
+  "Undead Seal",
   "Upper Roshamuul",
   "Walls",
   "Warzone 3",
+  "Warzone 6",
   "Warzone 7",
   "Warzone 9",
   "Warzones",
@@ -97,8 +103,7 @@ export const STATIC_RESPAWNS: string[] = [
   "Werelions",
   "WereTigers",
   "West",
-  "Wyrm Drefia",
-  "WZ6"
+  "Wyrm Drefia"
 ];
 
 export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSuccess, overviewData, rawData, onBack, userEmail }) => {
@@ -372,13 +377,15 @@ export const KSRegistrationForm: React.FC<KSRegistrationFormProps> = ({ onSucces
       const printsData = await Promise.all(
         files.map(async (file, index) => {
           if (!file) return null;
-          const fileExt = file.name.split('.').pop();
+          // Comprime a imagem no navegador para economizar cota e acelerar o envio
+          const processedFile = await compressImage(file);
+          const fileExt = processedFile.name.split('.').pop() || 'jpg';
           const fileName = `ks_proofs/${Date.now()}_${Math.random()}.${fileExt}`;
-          const { error } = await supabase.storage.from('ks_proofs').upload(fileName, file);
+          const { error } = await supabase.storage.from('ks_proofs').upload(fileName, processedFile);
           
           if (error) {
             if (error.message === 'Bucket not found') {
-              throw new Error('Configuração pendente: O bucket "ks_proofs" não foi encontrado no Supabase.');
+              throw new Error('Configuração pendente: O bucket "ks_proofs" não foi encontrado no Supabase. Crie o bucket "ks_proofs" no painel de Storage como público.');
             }
             throw error;
           }

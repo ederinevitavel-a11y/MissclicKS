@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Upload, ArrowLeft, CheckCircle, User, Target, FileText, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { submitHuntedSuggestionToSupabase } from '../services/supabaseService';
+import { compressImage } from '../utils/imageCompressor';
 
 interface SuggestHuntedFormProps {
   onBack: () => void;
@@ -52,13 +53,15 @@ export const SuggestHuntedForm: React.FC<SuggestHuntedFormProps> = ({ onBack, on
       const printsData = await Promise.all(
         files.map(async (file, index) => {
           if (!file) return null;
-          const fileExt = file.name.split('.').pop();
+          // Comprime a imagem no navegador para economizar cota e acelerar o envio
+          const processedFile = await compressImage(file);
+          const fileExt = processedFile.name.split('.').pop() || 'jpg';
           const fileName = `hunted_prints/${Date.now()}_${Math.random()}.${fileExt}`;
-          const { error } = await supabase.storage.from('hunted_prints').upload(fileName, file);
+          const { error } = await supabase.storage.from('hunted_prints').upload(fileName, processedFile);
 
           if (error) {
             if (error.message === 'Bucket not found') {
-              throw new Error('Configuração pendente: O bucket "hunted_prints" não foi encontrado no Supabase.');
+              throw new Error('Configuração pendente: O bucket "hunted_prints" não foi encontrado no Supabase. Crie o bucket "hunted_prints" no painel de Storage como público.');
             }
             throw error;
           }

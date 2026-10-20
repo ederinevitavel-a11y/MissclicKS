@@ -5,7 +5,7 @@ import { SkullIcon } from './NeonIcons';
 import { fetchCharacterStatus, fetchWorldOnlinePlayers, CharacterStatus } from '../services/tibiaDataService';
 import { SuggestHuntedForm } from './SuggestHuntedForm';
 import { formatPlayerName } from '../services/csvService';
-import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan, Crosshair, Search, Radio } from 'lucide-react';
+import { Activity, Target, Zap, TrendingUp, MapPin, ShieldAlert, Terminal, Clock, Flame, Plus, Users, Eye, MapPinned, BarChart3, Scan, Crosshair, Search, Radio, AlertTriangle, Copy, Check, Skull, BellRing, Sparkles, AlertCircle } from 'lucide-react';
 
 interface OverviewProps {
   data: OverviewData;
@@ -855,7 +855,7 @@ export const Overview: React.FC<OverviewProps> = ({ data, rawData, onBackToIntel
         )}
       </motion.div>
 
-      {/* Hunted Intelligence */}
+      {/* Target Intelligence */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

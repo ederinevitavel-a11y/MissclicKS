@@ -79,7 +79,7 @@ export const RESPAWN_CANONICAL_MAP: Record<string, string> = {
   "livraria de terra": "Livraria de Terra",
   "livraria 4": "Livraria 4",
   "livraria nova": "Livraria Nova",
-  "livraria edron": "Livraria Edron",
+  "livraria edron": "Livraria Nova",
 
   // Mithmah
   "mitmah": "Mithmah",
@@ -135,10 +135,12 @@ export const RESPAWN_CANONICAL_MAP: Record<string, string> = {
   "helffire fighers inq": "Hellfire Fighters Inq",
   "hellfire fighters inq": "Hellfire Fighters Inq",
 
-  // Alminhas
-  "alminhas": "Alminhas Port Hope",
-  "alminhas port hope": "Alminhas Port Hope",
-  "alminha de venore": "Alminha de Venore",
+  // Alminhas (Flimsy Lost Souls)
+  "alminhas": "Flimsy Port Hope",
+  "alminhas port hope": "Flimsy Port Hope",
+  "alminha de venore": "Flimsy Venore",
+  "alminhas venore": "Flimsy Venore",
+  "lost soul venore": "Flimsy Venore",
 
   // Bulltaur
   "bulltaur lair": "Bulltar",
@@ -161,13 +163,22 @@ export const RESPAWN_CANONICAL_MAP: Record<string, string> = {
 
   // POI & Warzones
   "poi": "POI",
-  "wz6": "WZ6",
+  "wz6": "Warzone 6",
+  "warzone 6": "Warzone 6",
   "warzone 3": "Warzone 3",
   "warzone 7": "Warzone 7",
   "warzone 7 - girtabilu": "Warzone 7",
   "warzone 9": "Warzone 9",
   "warzones": "Warzones",
-  "demons/grim reaper de oramond": "Demons/Grim Reaper Oramond"
+  "demons/grim reaper de oramond": "Demons/Grim Reaper Oramond",
+
+  // Ferumbras Seals & Library
+  "bazir ferumbras": "Bazir Seal",
+  "bazir": "Bazir Seal",
+  "undead seal": "Undead Seal",
+  "bookworld": "Livraria Nova",
+  "wardragon": "Nimmersatt Dragons",
+  "war dragon": "Nimmersatt Dragons"
 };
 
 export const formatRespawnName = (name: string): string => {
