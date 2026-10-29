@@ -31,30 +31,45 @@ const mapSupabaseRowToRawData = (row: any): RawDataRow => {
     respawn: formatRespawnName(row.respawn || 'Unknown Area'),
     huntedName,
     usualTime: row.usualTime || row.usual_time || row.time || '',
-    email: row.email || '',
+    email: '',
     tempoKS,
     isPT
   };
 };
 
+// Explicitly list only columns needed by the dashboard, strictly excluding personal data like 'email'
+const SAFE_KS_COLUMNS = 'id, player, char_name, ks, date, created_at, player_rank, respawn, hunted_name, id_code, tempo_ks, is_pt, print1_url, print1_name, print2_url, print2_name';
+const MINIMAL_SAFE_KS_COLUMNS = 'id, player, char_name, ks, date, created_at, player_rank, respawn, hunted_name, id_code, tempo_ks, is_pt';
+
 /**
  * Fetches all KS entries from Supabase.
  * Tries the 'ks_entries' table, then falls back to 'kills' if it fails.
+ * Privacy protection: never requests 'email' or private operator information.
  */
 export const fetchKSEntriesFromSupabase = async (): Promise<RawDataRow[]> => {
   if (!supabase) {
     throw new Error("Supabase URL and Anon Key are not configured in the system.");
   }
 
-  // Attempt 1: Fetch from 'ks_entries'
+  // Attempt 1: Fetch from 'ks_entries' with safe columns (no email)
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('ks_entries')
-      .select('*')
+      .select(SAFE_KS_COLUMNS)
       .order('date', { ascending: false });
 
+    // Fallback if some print columns are missing in custom schema
+    if (error && error.message?.includes('column')) {
+      const fallbackQuery = await supabase
+        .from('ks_entries')
+        .select(MINIMAL_SAFE_KS_COLUMNS)
+        .order('date', { ascending: false });
+      data = fallbackQuery.data;
+      error = fallbackQuery.error;
+    }
+
     if (!error && data) {
-      console.log(`Successfully fetched ${data.length} records from Supabase 'ks_entries'`);
+      console.log(`Successfully fetched ${data.length} records from Supabase 'ks_entries' (sanitized, email excluded)`);
       return data.map(mapSupabaseRowToRawData);
     }
     
@@ -65,17 +80,30 @@ export const fetchKSEntriesFromSupabase = async (): Promise<RawDataRow[]> => {
     console.warn("Exception fetching from 'ks_entries', trying fallback...", err);
   }
 
-  // Attempt 2: Fallback to 'kills'
-  const { data, error } = await supabase
-    .from('kills')
-    .select('*')
-    .order('created_at', { ascending: false });
+  // Attempt 2: Fallback to 'kills' with safe columns
+  try {
+    let { data, error } = await supabase
+      .from('kills')
+      .select(SAFE_KS_COLUMNS)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+    if (error && error.message?.includes('column')) {
+      const fallbackQuery = await supabase
+        .from('kills')
+        .select(MINIMAL_SAFE_KS_COLUMNS)
+        .order('created_at', { ascending: false });
+      data = fallbackQuery.data;
+      error = fallbackQuery.error;
+    }
+
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    return (data || []).map(mapSupabaseRowToRawData);
+  } catch (err: any) {
+    throw new Error(`Database error: ${err.message || String(err)}`);
   }
-
-  return (data || []).map(mapSupabaseRowToRawData);
 };
 
 /**

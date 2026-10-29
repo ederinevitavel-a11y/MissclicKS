@@ -286,16 +286,20 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     !h.includes('email') && !h.includes('e-mail')
   );
   const idxRank = headers.findIndex(h => h.includes('rank') || h.includes('patente'));
-  const idxHunted = headers.findIndex(h => h.includes('hunted') || h.includes('vítima') || h.includes('alvo'));
+  const idxHunted = headers.findIndex(h => h.includes('hunted') || h.includes('vítima') || h.includes('alvo') || h.includes('hunt'));
   const idxRespawn = headers.findIndex(h => h.includes('respawn') || h.includes('respaw') || h.includes('local') || h.includes('área'));
-  const idxStatus = headers.findIndex(h => h.includes('status') || h.includes('situação'));
+  const idxStatus = headers.findIndex(h => h.includes('status') || h.includes('situação') || h.includes('situacao') || h.includes('aprov'));
   const idxWeight = headers.findIndex(h => h.includes('peso') || h.includes('weight'));
+  
   // Coluna K - Tempo de KS (índice 10: A=0, B=1, ... K=10)
   let idxTempo = headers.findIndex(h => h.includes('tempo de ks') || h === 'tempo' || (h.includes('tempo') && !h.includes('carimbo')));
   if (idxTempo === -1) idxTempo = 10;
+
+  // Horário habitual do Hunted (Coluna M ou busca por cabeçalho)
+  const idxUsualTime = headers.findIndex(h => h.includes('horário') || h.includes('horario') || h.includes('habitual') || h.includes('costuma') || h.includes('hora'));
   
   console.log("Cabeçalhos detectados:", headers);
-  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus, idxWeight, idxTempo });
+  console.log("Índices mapeados:", { idxDate, idxName, idxRank, idxHunted, idxRespawn, idxStatus, idxWeight, idxTempo, idxUsualTime });
 
   const data: RawDataRow[] = [];
 
@@ -303,28 +307,28 @@ const parseCSV = (csvText: string): RawDataRow[] => {
     const cols = parseCSVLine(lines[i], delimiter);
     if (cols.length < 2) continue;
 
-    // 1. Filtro estrito de Status (Coluna H): precisa ser estritamente 'aprovado'. Se estiver em branco, 'negado' ou outro texto, o registro é descartado.
-    const statusCol = idxStatus !== -1 ? cols[idxStatus] : (cols[7] || '');
+    // 1. Filtro estrito de Status: precisa ser estritamente 'aprovado'. Se estiver em branco, 'negado' ou outro texto, o registro é descartado.
+    const statusCol = idxStatus !== -1 ? (cols[idxStatus] || '') : (cols[7] || '');
     const statusClean = statusCol ? statusCol.toLowerCase().trim() : '';
     if (!statusClean.startsWith('aprovado') || statusClean.includes('negad') || statusClean.includes('reprovad')) {
       continue;
     }
 
-    // 2. Extração do Jogador (Coluna C / nome do char)
-    let name = cols[idxName !== -1 ? idxName : 2];
-    if (name && name.includes('@')) {
-      name = cols[idxName !== -1 ? idxName + 1 : 3];
+    // 2. Extração do Jogador (Nome do Char) - pula coluna se for e-mail
+    let name = idxName !== -1 ? cols[idxName] : cols[2];
+    if (name && name.includes('@') && cols[3]) {
+      name = cols[3];
     }
     if (!name || name.trim() === '') continue;
 
-    const dateStr = cols[idxDate !== -1 ? idxDate : 0];
-    const rank = idxRank !== -1 ? cols[idxRank] : (cols[3] || 'Unranked');
-    const hunted = idxHunted !== -1 ? cols[idxHunted] : (cols[4] || '');
-    const respawn = idxRespawn !== -1 ? cols[idxRespawn] : (cols[5] || 'Unknown Area');
-    const usualTime = cols[12] || ''; 
+    const dateStr = idxDate !== -1 ? cols[idxDate] : cols[0];
+    const rank = idxRank !== -1 ? (cols[idxRank] || 'Unranked') : (cols[3] || 'Unranked');
+    const hunted = idxHunted !== -1 ? (cols[idxHunted] || '') : (cols[4] || '');
+    const respawn = idxRespawn !== -1 ? (cols[idxRespawn] || 'Unknown Area') : (cols[5] || 'Unknown Area');
+    const usualTime = idxUsualTime !== -1 ? (cols[idxUsualTime] || '') : (cols[12] || ''); 
 
-    // 3. Coluna K (índice 10): Tempo de KS
-    const rawColK = (cols[10] !== undefined ? cols[10] : (cols[idxTempo] || '')).trim();
+    // 3. Coluna Tempo de KS
+    const rawColK = (idxTempo !== -1 && cols[idxTempo] !== undefined ? cols[idxTempo] : (cols[10] || '')).trim();
     const tempoKS = rawColK;
 
     // REGRA GERAL:
